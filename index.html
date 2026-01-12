@@ -1,0 +1,1495 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Citation System Technical Specification</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-light: #dbeafe;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-600: #4b5563;
+      --gray-800: #1f2937;
+      --green-100: #dcfce7;
+      --green-700: #15803d;
+      --yellow-100: #fef9c3;
+      --yellow-700: #a16207;
+      --red-100: #fee2e2;
+      --red-700: #b91c1c;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      color: var(--gray-800);
+      background: var(--gray-50);
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    header {
+      background: linear-gradient(135deg, var(--primary), #1d4ed8);
+      color: white;
+      padding: 3rem 2rem;
+      margin-bottom: 2rem;
+      border-radius: 12px;
+    }
+
+    header h1 {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    header p {
+      opacity: 0.9;
+      font-size: 1.1rem;
+    }
+
+    .meta {
+      display: flex;
+      gap: 2rem;
+      margin-top: 1rem;
+      font-size: 0.9rem;
+      opacity: 0.8;
+    }
+
+    nav {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    nav h2 {
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+      color: var(--gray-600);
+    }
+
+    nav ul {
+      list-style: none;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 0.5rem;
+    }
+
+    nav a {
+      color: var(--primary);
+      text-decoration: none;
+      padding: 0.5rem;
+      display: block;
+      border-radius: 6px;
+      transition: background 0.2s;
+    }
+
+    nav a:hover {
+      background: var(--primary-light);
+    }
+
+    section {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      color: var(--primary);
+      font-size: 1.8rem;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--primary-light);
+    }
+
+    h3 {
+      font-size: 1.3rem;
+      margin: 1.5rem 0 1rem;
+      color: var(--gray-800);
+    }
+
+    h4 {
+      font-size: 1.1rem;
+      margin: 1rem 0 0.5rem;
+      color: var(--gray-600);
+    }
+
+    p {
+      margin-bottom: 1rem;
+    }
+
+    .diagram-container {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      overflow-x: auto;
+      position: relative;
+    }
+
+    .diagram-container .mermaid {
+      display: flex;
+      justify-content: center;
+      min-height: 300px;
+    }
+
+    .diagram-title {
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--gray-600);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .fullscreen-btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: background 0.2s;
+    }
+
+    .fullscreen-btn:hover {
+      background: #1d4ed8;
+    }
+
+    .diagram-container.fullscreen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 1000;
+      border-radius: 0;
+      margin: 0;
+      background: white;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .diagram-container.fullscreen .mermaid {
+      flex: 1;
+      overflow: auto;
+      min-height: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+    }
+
+    th, td {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    th {
+      background: var(--gray-100);
+      font-weight: 600;
+    }
+
+    tr:hover {
+      background: var(--gray-50);
+    }
+
+    code {
+      background: var(--gray-100);
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 0.9em;
+    }
+
+    pre {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 1.5rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 1rem 0;
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+      color: inherit;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .badge-excel { background: var(--green-100); color: var(--green-700); }
+    .badge-pdf { background: var(--red-100); color: var(--red-700); }
+    .badge-user { background: #f3e8ff; color: #7c3aed; }
+    .badge-search { background: var(--primary-light); color: var(--primary); }
+    .badge-location { background: #ffedd5; color: #c2410c; }
+    .badge-override { background: var(--yellow-100); color: var(--yellow-700); }
+
+    .principles-box {
+      background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+      border: 1px solid #bae6fd;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+    }
+
+    .principles-box h4 {
+      color: #0369a1;
+      margin-top: 0;
+    }
+
+    .principles-box ul {
+      list-style: none;
+      margin: 0;
+    }
+
+    .principles-box li {
+      padding: 0.5rem 0;
+      padding-left: 1.5rem;
+      position: relative;
+    }
+
+    .principles-box li::before {
+      content: ">";
+      position: absolute;
+      left: 0;
+      color: var(--primary);
+      font-weight: bold;
+    }
+
+    .decision-table {
+      margin: 1.5rem 0;
+    }
+
+    .source-types {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+      margin: 1.5rem 0;
+    }
+
+    .source-type-card {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    .source-type-card .icon {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .source-type-card h5 {
+      margin: 0.5rem 0;
+      font-size: 1rem;
+    }
+
+    .source-type-card p {
+      font-size: 0.875rem;
+      color: var(--gray-600);
+      margin: 0;
+    }
+
+    .code-tabs {
+      margin: 1.5rem 0;
+    }
+
+    .code-tabs-nav {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: -1px;
+    }
+
+    .code-tabs-nav button {
+      background: var(--gray-100);
+      border: 1px solid var(--gray-200);
+      border-bottom: none;
+      padding: 0.5rem 1rem;
+      border-radius: 8px 8px 0 0;
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+
+    .code-tabs-nav button.active {
+      background: #1e293b;
+      color: white;
+      border-color: #1e293b;
+    }
+
+    .api-endpoint {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+
+    .api-endpoint .method {
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      margin-right: 0.5rem;
+    }
+
+    .api-endpoint .method.get { background: #dcfce7; color: #15803d; }
+    .api-endpoint .method.post { background: #dbeafe; color: #1d4ed8; }
+    .api-endpoint .method.patch { background: #fef9c3; color: #a16207; }
+    .api-endpoint .method.delete { background: #fee2e2; color: #b91c1c; }
+
+    .api-endpoint .path {
+      font-family: monospace;
+      font-size: 0.95rem;
+    }
+
+    .performance-metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 1rem;
+      margin: 1.5rem 0;
+    }
+
+    .metric-card {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .metric-card .value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .metric-card .label {
+      font-size: 0.875rem;
+      color: var(--gray-600);
+      margin-top: 0.25rem;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 1rem;
+      }
+
+      header {
+        padding: 2rem 1rem;
+      }
+
+      header h1 {
+        font-size: 1.8rem;
+      }
+
+      .meta {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      nav ul {
+        grid-template-columns: 1fr;
+      }
+
+      section {
+        padding: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Citation System Technical Specification</h1>
+      <p>CRE OM Generator - 数据溯源系统技术规范</p>
+      <div class="meta">
+        <span>Version: 1.0.0</span>
+        <span>Last Updated: 2026-01-12</span>
+        <span>Author: Engineering Team</span>
+      </div>
+    </header>
+
+    <nav>
+      <h2>目录</h2>
+      <ul>
+        <li><a href="#overview">1. 系统概述</a></li>
+        <li><a href="#concepts">2. 核心概念</a></li>
+        <li><a href="#data-model">3. 数据模型</a></li>
+        <li><a href="#architecture">4. 系统架构</a></li>
+        <li><a href="#flows">5. 核心流程</a></li>
+        <li><a href="#api">6. API 设计</a></li>
+        <li><a href="#components">7. 前端组件</a></li>
+        <li><a href="#storage">8. 存储方案</a></li>
+        <li><a href="#errors">9. 错误处理</a></li>
+        <li><a href="#performance">10. 性能优化</a></li>
+      </ul>
+    </nav>
+
+    <!-- Section 1: 系统概述 -->
+    <section id="overview">
+      <h2>1. 系统概述</h2>
+
+      <h3>1.1 什么是 Citation</h3>
+      <p>Citation（数据溯源）是 CRE OM Generator 的核心差异化功能。它为 AI 生成的每一个数据点建立到原始文档的精确追溯链接。</p>
+
+      <div class="principles-box">
+        <h4>Citation 核心价值</h4>
+        <ul>
+          <li><strong>可验证性</strong> - 用户可以一键查看任何数据的原始来源</li>
+          <li><strong>可编辑性</strong> - 用户可以修改数据并记录修改原因</li>
+          <li><strong>透明性</strong> - 清晰区分数据来源类型（Excel/PDF/用户输入等）</li>
+        </ul>
+      </div>
+
+      <h3>1.2 设计原则</h3>
+      <div class="diagram-container">
+        <div class="diagram-title">
+          <span>Citation 设计原则</span>
+          <button class="fullscreen-btn" onclick="toggleFullscreen(this)">全屏</button>
+        </div>
+        <div class="mermaid">
+graph LR
+    subgraph "设计原则"
+        P1[精确定位<br/>Excel到Cell<br/>PDF到Page]
+        P2[不用Embedding<br/>结构化数据<br/>直接Context注入]
+        P3[简单来源类型<br/>sourceType替代<br/>置信度计算]
+        P4[用户可控<br/>支持手动覆盖<br/>记录修改原因]
+        P5[高性能渲染<br/>虚拟化列表<br/>按需加载]
+    end
+
+    P1 --> P2 --> P3 --> P4 --> P5
+        </div>
+      </div>
+
+      <h3>1.3 技术决策</h3>
+      <table class="decision-table">
+        <thead>
+          <tr>
+            <th>决策点</th>
+            <th>选择</th>
+            <th>原因</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>是否需要 Embedding</td>
+            <td><strong>否</strong></td>
+            <td>数据量小(&lt;10K tokens)，直接 Context 注入</td>
+          </tr>
+          <tr>
+            <td>置信度计算</td>
+            <td><strong>移除</strong></td>
+            <td>增加复杂度但价值有限，改用 sourceType</td>
+          </tr>
+          <tr>
+            <td>文档解析</td>
+            <td><strong>直接用库</strong></td>
+            <td>openpyxl/pdfplumber，完全控制 Citation 格式</td>
+          </tr>
+          <tr>
+            <td>存储方式</td>
+            <td><strong>PostgreSQL JSONB</strong></td>
+            <td>灵活 schema + 关系查询</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Section 2: 核心概念 -->
+    <section id="concepts">
+      <h2>2. 核心概念</h2>
+
+      <h3>2.1 概念关系图</h3>
+      <div class="diagram-container">
+        <div class="diagram-title">
+          <span>Citation 概念关系</span>
+          <button class="fullscreen-btn" onclick="toggleFullscreen(this)">全屏</button>
+        </div>
+        <div class="mermaid">
+graph TB
+    subgraph "原始数据层"
+        DOC[Document<br/>上传的文件]
+        EXCEL[Excel File]
+        PDF[PDF File]
+        DS[Deep Search Result]
+    end
+
+    subgraph "解析层"
+        PARSER[Document Parser]
+        CELL[Cell Data<br/>Sheet + Cell坐标]
+        PAGE[Page Data<br/>页码 + 段落]
+        URL[URL Data<br/>来源链接]
+    end
+
+    subgraph "Citation层"
+        CIT[Citation Record<br/>溯源记录]
+        SRC[Source Info<br/>来源信息]
+        POS[Position Info<br/>位置信息]
+        VAL[Value Info<br/>值信息]
+    end
+
+    subgraph "内容层"
+        BLOCK[Content Block<br/>OM内容块]
+        SEC[Section<br/>章节]
+        OM[OM Report<br/>最终报告]
+    end
+
+    DOC --> EXCEL
+    DOC --> PDF
+    DS --> URL
+
+    EXCEL --> PARSER
+    PDF --> PARSER
+    URL --> PARSER
+
+    PARSER --> CELL
+    PARSER --> PAGE
+    PARSER --> URL
+
+    CELL --> CIT
+    PAGE --> CIT
+    URL --> CIT
+
+    CIT --> SRC
+    CIT --> POS
+    CIT --> VAL
+
+    CIT --> BLOCK
+    BLOCK --> SEC
+    SEC --> OM
+
+    style CIT fill:#e1f5fe
+    style BLOCK fill:#fff3e0
+        </div>
+      </div>
+
+      <h3>2.2 sourceType 类型说明</h3>
+      <div class="source-types">
+        <div class="source-type-card">
+          <div class="icon">📊</div>
+          <h5><span class="badge badge-excel">excel</span></h5>
+          <p>Excel 单元格数据<br/>如: Cell D12</p>
+        </div>
+        <div class="source-type-card">
+          <div class="icon">📄</div>
+          <h5><span class="badge badge-pdf">pdf</span></h5>
+          <p>PDF 文档内容<br/>如: Page 15</p>
+        </div>
+        <div class="source-type-card">
+          <div class="icon">👤</div>
+          <h5><span class="badge badge-user">user</span></h5>
+          <p>用户直接输入<br/>表单填写</p>
+        </div>
+        <div class="source-type-card">
+          <div class="icon">🔍</div>
+          <h5><span class="badge badge-search">deep_search</span></h5>
+          <p>Deep Search 结果<br/>CoStar, Zillow等</p>
+        </div>
+        <div class="source-type-card">
+          <div class="icon">📍</div>
+          <h5><span class="badge badge-location">location</span></h5>
+          <p>Location Agent<br/>Google Places POI</p>
+        </div>
+        <div class="source-type-card">
+          <div class="icon">✏️</div>
+          <h5><span class="badge badge-override">manual_override</span></h5>
+          <p>用户修改值<br/>需说明原因</p>
+        </div>
+      </div>
+
+      <div class="diagram-container">
+        <div class="diagram-title">
+          <span>sourceType 信任层级</span>
+          <button class="fullscreen-btn" onclick="toggleFullscreen(this)">全屏</button>
+        </div>
+        <div class="mermaid">
+graph LR
+    subgraph "数据来源类型 (sourceType)"
+        EXCEL[excel<br/>📊 Excel文件]
+        PDF[pdf<br/>📄 PDF文档]
+        USER[user<br/>👤 用户输入]
+        DEEP[deep_search<br/>🔍 深度搜索]
+        LOC[location<br/>📍 位置智能]
+        MANUAL[manual_override<br/>✏️ 手动修改]
+    end
+
+    EXCEL --> |"最可信"| TRUST[信任等级]
+    PDF --> TRUST
+    USER --> TRUST
+    DEEP --> |"需验证"| TRUST
+    LOC --> TRUST
+    MANUAL --> |"用户确认"| TRUST
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3: 数据模型 -->
+    <section id="data-model">
+      <h2>3. 数据模型</h2>
+
+      <h3>3.1 Citation 核心结构</h3>
+      <div class="diagram-container">
+        <div class="diagram-title">
+          <span>Citation 数据结构</span>
+          <button class="fullscreen-btn" onclick="toggleFullscreen(this)">全屏</button>
+        </div>
+        <div class="mermaid">
+classDiagram
+    class Citation {
+        +string id
+        +string contentBlockId
+        +Source source
+        +Position position
+        +string originalValue
+        +string displayValue
+        +string snippet
+        +SourceType sourceType
+        +Date extractedAt
+        +boolean isManualOverride
+        +string overrideReason
+    }
+
+    class Source {
+        +string documentId
+        +string documentName
+        +DocumentType documentType
+    }
+
+    class Position {
+        +string type
+        +string sheet
+        +string cell
+        +number page
+    }
+
+    class ContentBlock {
+        +string id
+        +string sectionId
+        +string type
+        +string content
+        +Citation[] citations
+    }
+
+    Citation --> Source
+    Citation --> Position
+    ContentBlock --> Citation
+        </div>
+      </div>
+
+      <h3>3.2 TypeScript 接口定义</h3>
+      <pre><code>interface Citation {
+  // 标识信息
+  id: string;                      // UUID
+  contentBlockId: string;          // 关联的内容块ID
+
+  // 来源信息
+  source: {
+    documentId: string;            // 原始文档ID
+    documentName: string;          // 如 "Underwriting Model.xlsx"
+    documentType: 'excel' | 'pdf' | 'word' | 'image' | 'deep_search';
+  };
+
+  // 位置信息
+  position: {
+    type: 'cell' | 'range' | 'page' | 'paragraph' | 'url';
+    sheet?: string;                // Excel工作表名
+    cell?: string;                 // 单元格，如"D12"
+    page?: number;                 // PDF页码
+    url?: string;                  // Deep Search来源URL
+  };
+
+  // 值信息
+  originalValue: string;           // 原始值, 如 "15900000"
+  displayValue: string;            // 显示值, 如 "$15.9M"
+  snippet: string;                 // 上下文片段 (<100字符)
+
+  // 元信息
+  sourceType: 'excel' | 'pdf' | 'user' | 'deep_search' | 'location' | 'manual_override';
+  extractedAt: Date;
+
+  // 修改追踪
+  isManualOverride: boolean;
+  overrideReason?: string;
+  previousValue?: string;
+}</code></pre>
+    </section>
+
+    <!-- Section 4: 系统架构 -->
+    <section id="architecture">
+      <h2>4. 系统架构</h2>
+
+      <h3>4.1 整体架构图</h3>
+      <div class="diagram-container">
+        <div class="diagram-title">
+          <span>Citation 系统架构</span>
+          <button class="fullscreen-btn" onclick="toggleFullscreen(this)">全屏</button>
+        </div>
+        <div class="mermaid">
+flowchart TB
+    subgraph "前端层 Next.js"
+        UI[OM Editor UI]
+        CIT_COMP[Citation Components]
+        PREVIEW[Citation Preview]
+    end
+
+    subgraph "API层 tRPC"
+        UPLOAD[upload.file]
+        PARSE[document.parse]
+        GEN[om.generate]
+        CIT_API[citation.query]
+        EDIT[citation.override]
+    end
+
+    subgraph "业务层"
+        DOC_PARSER[Document Parser<br/>文档解析器]
+        CIT_BINDER[Citation Binder<br/>溯源绑定器]
+        AI_GEN[AI Generator<br/>内容生成器]
+    end
+
+    subgraph "解析工具"
+        OPENPYXL[openpyxl<br/>Excel解析]
+        PDFPLUMBER[pdfplumber<br/>PDF解析]
+    end
+
+    subgraph "存储层"
+        PG[(PostgreSQL<br/>Citation + Blocks)]
+        S3[(S3<br/>原始文件)]
+    end
+
+    subgraph "AI层"
+        CLAUDE[Claude API<br/>Context注入]
+    end
+
+    UI --> CIT_COMP
+    CIT_COMP --> PREVIEW
+
+    UI --> UPLOAD
+    UI --> GEN
+    CIT_COMP --> CIT_API
+    CIT_COMP --> EDIT
+
+    UPLOAD --> DOC_PARSER
+    PARSE --> DOC_PARSER
+    GEN --> AI_GEN
+    CIT_API --> PG
+    EDIT --> PG
+
+    DOC_PARSER --> OPENPYXL
+    DOC_PARSER --> PDFPLUMBER
+    DOC_PARSER --> CIT_BINDER
+
+    AI_GEN --> CLAUDE
+    AI_GEN --> CIT_BINDER
+
+    CIT_BINDER --> PG
+    DOC_PARSER --> S3
+
+    style CIT_BINDER fill:#e1f5fe
+    style CIT_COMP fill:#fff3e0
+        </div>
+      </div>
+
+      <h3>4.2 数据流向图</h3>
+      <div class="diagram-container">
+        <div class="diagram-title">
+          <span>数据流向</span>
+          <button class="fullscreen-btn" onclick="toggleFullscreen(this)">全屏</button>
+        </div>
+        <div class="mermaid">
+flowchart LR
+    subgraph "输入"
+        F1[Excel文件]
+        F2[PDF文件]
+        F3[用户输入]
+    end
+
+    subgraph "解析提取"
+        P1[openpyxl<br/>Cell位置]
+        P2[pdfplumber<br/>Page位置]
+        P3[表单处理<br/>字段名]
+    end
+
+    subgraph "结构化数据"
+        D1[ExtractedData<br/>带位置信息]
+    end
+
+    subgraph "AI生成"
+        AI[Claude API<br/>Context注入]
+    end
+
+    subgraph "Citation绑定"
+        B1[匹配生成内容<br/>与原始数据]
+        B2[创建Citation]
+    end
+
+    subgraph "输出"
+        O1[OM Report<br/>带Citation标记]
+        O2[Citation Records<br/>存储DB]
+    end
+
+    F1 --> P1
+    F2 --> P2
+    F3 --> P3
+
+    P1 --> D1
+    P2 --> D1
+    P3 --> D1
+
+    D1 --> AI
+    AI --> B1
+    D1 --> B1
+
+    B1 --> B2
+    B2 --> O1
+    B2 --> O2
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 5: 核心流程 -->
+    <section id="flows">
+      <h2>5. 核心流程</h2>
+
+      <h3>5.1 文档上传与解析流程</h3>
+      <div class="diagram-container">
+        <div class="diagram-title">
+          <span>文档上传解析时序图</span>
+          <button class="fullscreen-btn" onclick="toggleFullscreen(this)">全屏</button>
+        </div>
+        <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant User as 用户
+    participant UI as 前端
+    participant API as API层
+    participant Parser as 文档解析器
+    participant S3 as S3存储
+    participant DB as 数据库
+
+    User->>UI: 上传文件 (Excel/PDF)
+    UI->>API: POST /api/upload
+    API->>S3: 存储原始文件
+    S3-->>API: 返回 s3Key
+
+    API->>Parser: 解析文档
+
+    alt Excel文件
+        Parser->>Parser: openpyxl.load_workbook()
+        Parser->>Parser: 遍历所有Sheet
+        Parser->>Parser: 提取Cell坐标+值
+    else PDF文件
+        Parser->>Parser: pdfplumber.open()
+        Parser->>Parser: 遍历所有Page
+        Parser->>Parser: 提取Page+段落+值
+    end
+
+    Parser-->>API: 返回ExtractedData[]
+    API->>DB: 存储Document记录
+    API->>DB: 存储ExtractedData JSONB
+
+    API-->>UI: 返回解析结果
+    UI-->>User: 显示文件列表+预览
+        </div>
+      </div>
+
+      <h3>5.2 OM生成与Citation绑定流程</h3>
+      <div class="diagram-container">
+        <div class="diagram-title">
+          <span>OM生成绑定时序图</span>
+          <button class="fullscreen-btn" onclick="toggleFullscreen(this)">全屏</button>
+        </div>
+        <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant User as 用户
+    participant UI as 前端
+    participant API as API层
+    participant Gen as AI生成器
+    participant Binder as Citation绑定器
+    participant Claude as Claude API
+    participant DB as 数据库
+
+    User->>UI: 点击生成OM
+    UI->>API: POST /api/om/generate
+
+    API->>DB: 获取项目ExtractedData
+    DB-->>API: 返回结构化数据
+
+    API->>Gen: 生成请求+数据
+    Gen->>Gen: 构建Prompt<br/>数据直接注入Context
+    Gen->>Claude: 发送请求
+    Claude-->>Gen: 返回生成内容
+
+    Gen->>Binder: 内容+ExtractedData
+
+    loop 每个数据点
+        Binder->>Binder: 匹配生成内容中的值
+        Binder->>Binder: 创建Citation记录
+        Binder->>Binder: 插入Citation标记
+    end
+
+    Binder-->>API: 返回带标记内容+Citations
+
+    API->>DB: 存储ContentBlocks
+    API->>DB: 存储Citations
+
+    API-->>UI: 返回OM内容
+    UI-->>User: 渲染带Citation报告
+        </div>
+      </div>
+
+      <h3>5.3 Citation查看流程</h3>
+      <div class="diagram-container">
+        <div class="diagram-title">
+          <span>Citation查看时序图</span>
+          <button class="fullscreen-btn" onclick="toggleFullscreen(this)">全屏</button>
+        </div>
+        <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant User as 用户
+    participant UI as Citation组件
+    participant API as API层
+    participant DB as 数据库
+    participant S3 as S3存储
+
+    User->>UI: Hover Citation标记
+    UI->>UI: 显示简略信息<br/>从缓存
+
+    User->>UI: 点击Citation标记
+    UI->>API: GET /api/citation/:id
+    API->>DB: 查询Citation详情
+    DB-->>API: 返回Citation记录
+
+    alt sourceType = excel
+        API->>S3: 获取Excel文件
+        S3-->>API: 返回文件
+        API->>API: 读取周围Cell内容
+    else sourceType = pdf
+        API->>S3: 获取PDF文件
+        S3-->>API: 返回文件
+        API->>API: 提取页面截图/文本
+    end
+
+    API-->>UI: 返回完整Citation+Preview
+    UI->>UI: 渲染Citation Popover
+    UI-->>User: 显示来源详情+预览
+        </div>
+      </div>
+
+      <h3>5.4 Citation修改流程</h3>
+      <div class="diagram-container">
+        <div class="diagram-title">
+          <span>Citation修改时序图</span>
+          <button class="fullscreen-btn" onclick="toggleFullscreen(this)">全屏</button>
+        </div>
+        <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant User as 用户
+    participant UI as Citation组件
+    participant API as API层
+    participant DB as 数据库
+
+    User->>UI: 点击Edit Value
+    UI->>UI: 显示编辑表单
+
+    User->>UI: 输入新值+修改原因
+    UI->>API: PATCH /api/citation/:id/override
+
+    API->>DB: 开启事务
+    API->>DB: 更新Citation<br/>isManualOverride=true<br/>previousValue=旧值<br/>overrideReason=原因
+    API->>DB: 更新ContentBlock内容
+    API->>DB: 提交事务
+
+    API-->>UI: 返回更新结果
+    UI->>UI: 更新显示值
+    UI->>UI: 添加已修改标记
+    UI-->>User: 显示修改成功
+        </div>
+      </div>
+
+      <h3>5.5 Citation 生命周期状态图</h3>
+      <div class="diagram-container">
+        <div class="diagram-title">
+          <span>Citation 生命周期</span>
+          <button class="fullscreen-btn" onclick="toggleFullscreen(this)">全屏</button>
+        </div>
+        <div class="mermaid">
+stateDiagram-v2
+    [*] --> Uploaded: 上传文件
+
+    Uploaded --> Parsing: 开始解析
+    Parsing --> Parsed: 解析完成
+    Parsing --> ParseError: 解析失败
+    ParseError --> Uploaded: 重新上传
+
+    Parsed --> Extracted: 数据提取完成
+    Extracted --> Generating: 生成OM
+
+    Generating --> Generated: 生成完成
+    Generating --> GenError: 生成失败
+    GenError --> Extracted: 重试生成
+
+    Generated --> Binding: Citation绑定
+    Binding --> Bound: 绑定完成
+
+    Bound --> Editing: 用户编辑
+    Editing --> Bound: 保存修改
+
+    Bound --> Exporting: 导出PDF
+    Exporting --> [*]: 完成
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 6: API 设计 -->
+    <section id="api">
+      <h2>6. API 设计</h2>
+
+      <h3>6.1 Citation API Endpoints</h3>
+
+      <div class="api-endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/citation/:id</span>
+        <p>获取单个 Citation 详情</p>
+      </div>
+
+      <div class="api-endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/citation/block/:contentBlockId</span>
+        <p>获取 ContentBlock 的所有 Citations</p>
+      </div>
+
+      <div class="api-endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/citation/:id/preview</span>
+        <p>获取 Citation 的原始文件预览</p>
+      </div>
+
+      <div class="api-endpoint">
+        <span class="method patch">PATCH</span>
+        <span class="path">/api/citation/:id/override</span>
+        <p>修改 Citation 值（需提供修改原因）</p>
+      </div>
+
+      <div class="api-endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/citation/:id/revert</span>
+        <p>撤销 Citation 修改，恢复原值</p>
+      </div>
+
+      <h3>6.2 tRPC Router 示例</h3>
+      <pre><code>export const citationRouter = router({
+  // 获取单个Citation详情
+  getById: publicProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ input, ctx }) => {
+      return ctx.db.citation.findUnique({
+        where: { id: input.id },
+        include: { document: true }
+      });
+    }),
+
+  // 修改Citation值
+  override: publicProcedure
+    .input(z.object({
+      id: z.string().uuid(),
+      newValue: z.string(),
+      reason: z.string().min(1).max(500)
+    }))
+    .mutation(async ({ input, ctx }) => {
+      return ctx.db.$transaction(async (tx) => {
+        const updated = await tx.citation.update({
+          where: { id: input.id },
+          data: {
+            displayValue: input.newValue,
+            isManualOverride: true,
+            overrideReason: input.reason,
+            sourceType: 'manual_override'
+          }
+        });
+        return updated;
+      });
+    }),
+});</code></pre>
+    </section>
+
+    <!-- Section 7: 前端组件 -->
+    <section id="components">
+      <h2>7. 前端组件</h2>
+
+      <h3>7.1 组件架构</h3>
+      <div class="diagram-container">
+        <div class="diagram-title">
+          <span>Citation 组件体系</span>
+          <button class="fullscreen-btn" onclick="toggleFullscreen(this)">全屏</button>
+        </div>
+        <div class="mermaid">
+graph TB
+    subgraph "Citation组件体系"
+        MARKER[CitationMarker<br/>行内标记]
+        TOOLTIP[CitationTooltip<br/>Hover简略信息]
+        POPOVER[CitationPopover<br/>点击详情弹窗]
+        PREVIEW[CitationPreview<br/>原文预览]
+        EDITOR[CitationEditor<br/>编辑表单]
+        BADGE[SourceTypeBadge<br/>来源类型标签]
+    end
+
+    subgraph "容器组件"
+        PROVIDER[CitationProvider<br/>Context提供者]
+        LIST[CitationList<br/>Section级别列表]
+    end
+
+    MARKER --> TOOLTIP
+    MARKER --> POPOVER
+    POPOVER --> PREVIEW
+    POPOVER --> EDITOR
+    POPOVER --> BADGE
+
+    PROVIDER --> MARKER
+    PROVIDER --> LIST
+    LIST --> MARKER
+        </div>
+      </div>
+
+      <h3>7.2 组件交互状态</h3>
+      <div class="diagram-container">
+        <div class="diagram-title">
+          <span>Citation 组件状态机</span>
+          <button class="fullscreen-btn" onclick="toggleFullscreen(this)">全屏</button>
+        </div>
+        <div class="mermaid">
+stateDiagram-v2
+    [*] --> Idle: 初始状态
+
+    Idle --> Hovering: Mouse Enter
+    Hovering --> Idle: Mouse Leave
+    Hovering --> Open: Click
+
+    Open --> Loading: 首次打开
+    Loading --> Loaded: 数据返回
+    Loading --> Error: 加载失败
+    Error --> Loading: Retry
+
+    Loaded --> Editing: 点击Edit
+    Editing --> Loaded: Cancel
+    Editing --> Saving: Submit
+    Saving --> Loaded: Success
+    Saving --> Editing: Error
+
+    Loaded --> Idle: Close Popover
+        </div>
+      </div>
+
+      <h3>7.3 Citation Popover 展示</h3>
+      <pre><code>┌─────────────────────────────────────────┐
+│ 📊 Citation Source                      │
+├─────────────────────────────────────────┤
+│ Value: $15,900,000                      │
+│ Source: 📊 Excel                        │
+│ File: Underwriting Model.xlsx           │
+│ Location: Sheet "Summary", Cell D12     │
+│                                         │
+│ Preview:                                │
+│ ┌─────────────────────────────────────┐ │
+│ │ D11: Property Value                 │ │
+│ │ D12: 15,900,000  ← this cell       │ │
+│ │ D13: Cap Rate: 7.5%                 │ │
+│ └─────────────────────────────────────┘ │
+│                                         │
+│ [View Original File]  [Edit Value]      │
+└─────────────────────────────────────────┘</code></pre>
+    </section>
+
+    <!-- Section 8: 存储方案 -->
+    <section id="storage">
+      <h2>8. 存储方案</h2>
+
+      <h3>8.1 存储架构</h3>
+      <div class="diagram-container">
+        <div class="diagram-title">
+          <span>数据存储架构</span>
+          <button class="fullscreen-btn" onclick="toggleFullscreen(this)">全屏</button>
+        </div>
+        <div class="mermaid">
+graph TB
+    subgraph "PostgreSQL"
+        CITATIONS[(citations<br/>Citation记录)]
+        BLOCKS[(content_blocks<br/>内容块)]
+        DOCS[(documents<br/>文档元数据)]
+        EXTRACTED[(extracted_data<br/>解析数据JSONB)]
+    end
+
+    subgraph "S3"
+        RAW[/raw-files/<br/>原始上传文件/]
+        THUMB[/thumbnails/<br/>预览缩略图/]
+    end
+
+    subgraph "Redis 可选"
+        CACHE[(Citation缓存)]
+        PREVIEW_CACHE[(Preview缓存)]
+    end
+
+    CITATIONS --> BLOCKS
+    CITATIONS --> DOCS
+    DOCS --> EXTRACTED
+    DOCS --> RAW
+    DOCS --> THUMB
+
+    CITATIONS -.-> CACHE
+    CITATIONS -.-> PREVIEW_CACHE
+        </div>
+      </div>
+
+      <h3>8.2 索引策略</h3>
+      <pre><code>-- Citation表索引
+CREATE INDEX idx_citation_content_block ON citations(content_block_id);
+CREATE INDEX idx_citation_document ON citations(document_id);
+CREATE INDEX idx_citation_source_type ON citations(source_type);
+CREATE INDEX idx_citation_override ON citations(is_manual_override)
+  WHERE is_manual_override = true;
+
+-- 复合索引 (常用查询)
+CREATE INDEX idx_citation_block_type ON citations(content_block_id, source_type);</code></pre>
+    </section>
+
+    <!-- Section 9: 错误处理 -->
+    <section id="errors">
+      <h2>9. 错误处理</h2>
+
+      <h3>9.1 错误处理流程</h3>
+      <div class="diagram-container">
+        <div class="diagram-title">
+          <span>错误处理流程图</span>
+          <button class="fullscreen-btn" onclick="toggleFullscreen(this)">全屏</button>
+        </div>
+        <div class="mermaid">
+flowchart TB
+    START[操作请求] --> CHECK{参数校验}
+
+    CHECK -->|失败| INVALID[返回参数错误]
+    CHECK -->|成功| QUERY{数据查询}
+
+    QUERY -->|未找到| NOT_FOUND[返回404]
+    QUERY -->|成功| PROCESS{业务处理}
+
+    PROCESS -->|解析失败| PARSE_ERR[记录日志<br/>返回解析错误]
+    PROCESS -->|权限不足| AUTH_ERR[返回403]
+    PROCESS -->|成功| COMMIT{提交事务}
+
+    COMMIT -->|失败| ROLLBACK[回滚事务<br/>返回500]
+    COMMIT -->|成功| SUCCESS[返回成功]
+
+    INVALID --> LOG[记录错误日志]
+    NOT_FOUND --> LOG
+    PARSE_ERR --> LOG
+    AUTH_ERR --> LOG
+    ROLLBACK --> LOG
+
+    LOG --> RESPONSE[返回错误响应]
+        </div>
+      </div>
+
+      <h3>9.2 错误类型</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>错误码</th>
+            <th>说明</th>
+            <th>处理方式</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>CITATION_NOT_FOUND</code></td>
+            <td>Citation不存在</td>
+            <td>返回404，UI显示占位符</td>
+          </tr>
+          <tr>
+            <td><code>PARSE_FAILED</code></td>
+            <td>文档解析失败</td>
+            <td>记录日志，提示重新上传</td>
+          </tr>
+          <tr>
+            <td><code>BINDING_FAILED</code></td>
+            <td>Citation绑定失败</td>
+            <td>生成无Citation版本，提示手动添加</td>
+          </tr>
+          <tr>
+            <td><code>OVERRIDE_FAILED</code></td>
+            <td>修改失败</td>
+            <td>事务回滚，提示重试</td>
+          </tr>
+          <tr>
+            <td><code>REASON_REQUIRED</code></td>
+            <td>缺少修改原因</td>
+            <td>前端校验提示</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Section 10: 性能优化 -->
+    <section id="performance">
+      <h2>10. 性能优化</h2>
+
+      <h3>10.1 性能指标</h3>
+      <div class="performance-metrics">
+        <div class="metric-card">
+          <div class="value">&lt; 50ms</div>
+          <div class="label">Hover 响应</div>
+        </div>
+        <div class="metric-card">
+          <div class="value">&lt; 200ms</div>
+          <div class="label">Popover 加载</div>
+        </div>
+        <div class="metric-card">
+          <div class="value">&lt; 500ms</div>
+          <div class="label">Preview 生成</div>
+        </div>
+        <div class="metric-card">
+          <div class="value">&lt; 300ms</div>
+          <div class="label">批量加载(100个)</div>
+        </div>
+        <div class="metric-card">
+          <div class="value">&lt; 200ms</div>
+          <div class="label">修改保存</div>
+        </div>
+      </div>
+
+      <h3>10.2 优化策略</h3>
+      <div class="diagram-container">
+        <div class="diagram-title">
+          <span>性能优化策略</span>
+          <button class="fullscreen-btn" onclick="toggleFullscreen(this)">全屏</button>
+        </div>
+        <div class="mermaid">
+graph TB
+    subgraph "前端优化"
+        VIRTUAL[虚拟化列表<br/>大量Citation时]
+        PREFETCH[预加载<br/>Hover时预取]
+        LAZY[懒加载<br/>按需Preview]
+        MEMO[组件缓存<br/>React.memo]
+    end
+
+    subgraph "API优化"
+        BATCH[批量查询<br/>Section级别]
+        STREAM[流式返回<br/>大文件Preview]
+        COMPRESS[响应压缩<br/>gzip/br]
+    end
+
+    subgraph "数据库优化"
+        INDEX[索引优化<br/>常用查询路径]
+        JSONB[JSONB索引<br/>position字段]
+        PARTIAL[部分索引<br/>override=true]
+    end
+
+    subgraph "缓存优化"
+        QUERY_CACHE[TanStack Query<br/>客户端缓存]
+        REDIS[Redis<br/>服务端缓存]
+        CDN[CDN<br/>静态预览缓存]
+    end
+
+    VIRTUAL --> PREFETCH
+    PREFETCH --> LAZY
+
+    BATCH --> STREAM
+
+    INDEX --> JSONB
+    JSONB --> PARTIAL
+
+    QUERY_CACHE --> REDIS
+    REDIS --> CDN
+        </div>
+      </div>
+
+      <h3>10.3 缓存配置</h3>
+      <pre><code>// TanStack Query 缓存配置
+export const citationQueryOptions = {
+  getById: (id: string) => ({
+    queryKey: ['citation', id],
+    staleTime: 5 * 60 * 1000,      // 5分钟
+    gcTime: 30 * 60 * 1000         // 30分钟
+  }),
+
+  getPreview: (id: string) => ({
+    queryKey: ['citation', id, 'preview'],
+    staleTime: 30 * 60 * 1000,     // 30分钟 (文件不变)
+    gcTime: 60 * 60 * 1000         // 1小时
+  })
+};</code></pre>
+    </section>
+
+    <footer style="text-align: center; padding: 2rem; color: var(--gray-600);">
+      <p>CRE OM Generator - Citation Technical Specification</p>
+      <p>Version 1.0.0 | 2026-01-12</p>
+    </footer>
+  </div>
+
+  <script>
+    // 初始化 Mermaid
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'default',
+      flowchart: {
+        useMaxWidth: true,
+        htmlLabels: true,
+        curve: 'basis'
+      },
+      sequence: {
+        useMaxWidth: true,
+        showSequenceNumbers: true
+      }
+    });
+
+    // 全屏切换功能
+    function toggleFullscreen(btn) {
+      const container = btn.closest('.diagram-container');
+      container.classList.toggle('fullscreen');
+      btn.textContent = container.classList.contains('fullscreen') ? '退出全屏' : '全屏';
+    }
+
+    // ESC 退出全屏
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        document.querySelectorAll('.diagram-container.fullscreen').forEach(container => {
+          container.classList.remove('fullscreen');
+          container.querySelector('.fullscreen-btn').textContent = '全屏';
+        });
+      }
+    });
+  </script>
+</body>
+</html>

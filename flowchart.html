@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Citation System - Detailed Interaction Flows</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+        }
+
+        .header {
+            background: rgba(5, 150, 105, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 24px 48px;
+            border-bottom: 1px solid rgba(5, 150, 105, 0.3);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: linear-gradient(135deg, #059669, #10b981);
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #94a3b8;
+            font-size: 14px;
+            max-width: 800px;
+        }
+
+        .nav {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .nav a {
+            padding: 10px 18px;
+            background: rgba(5, 150, 105, 0.15);
+            border: 1px solid rgba(5, 150, 105, 0.3);
+            border-radius: 8px;
+            color: #6ee7b7;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .nav a:hover {
+            background: rgba(5, 150, 105, 0.3);
+            color: #fff;
+            transform: translateY(-1px);
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 40px 48px;
+        }
+
+        .diagram-section {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            margin-bottom: 48px;
+            overflow: hidden;
+        }
+
+        .diagram-header {
+            padding: 24px 28px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: rgba(5, 150, 105, 0.05);
+        }
+
+        .diagram-number {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #059669, #10b981);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 16px;
+            color: #fff;
+        }
+
+        .diagram-title-group {
+            flex: 1;
+        }
+
+        .diagram-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .diagram-subtitle {
+            font-size: 13px;
+            color: #94a3b8;
+        }
+
+        .diagram-wrapper {
+            position: relative;
+        }
+
+        .fullscreen-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 10px 16px;
+            background: rgba(5, 150, 105, 0.3);
+            border: 1px solid rgba(5, 150, 105, 0.5);
+            border-radius: 8px;
+            color: #6ee7b7;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+            z-index: 10;
+        }
+
+        .fullscreen-btn:hover {
+            background: rgba(5, 150, 105, 0.5);
+            color: #fff;
+        }
+
+        .diagram-content {
+            padding: 48px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.2);
+            overflow-x: auto;
+            min-height: 550px;
+        }
+
+        .mermaid {
+            width: 100%;
+            min-width: 1000px;
+        }
+
+        .mermaid svg {
+            width: 100% !important;
+            min-width: 1000px !important;
+            height: auto !important;
+            min-height: 450px !important;
+        }
+
+        .legend {
+            padding: 20px 28px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            gap: 32px;
+            flex-wrap: wrap;
+            font-size: 13px;
+            color: #94a3b8;
+            background: rgba(5, 150, 105, 0.03);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .legend-color {
+            width: 14px;
+            height: 14px;
+            border-radius: 4px;
+        }
+
+        .diagram-section.fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 1000;
+            margin: 0;
+            border-radius: 0;
+            overflow: auto;
+        }
+
+        .diagram-section.fullscreen .diagram-content {
+            min-height: calc(100vh - 140px);
+        }
+
+        .footer {
+            text-align: center;
+            padding: 40px;
+            color: #64748b;
+            font-size: 13px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .citation-types {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            padding: 24px 28px;
+            background: rgba(0, 0, 0, 0.3);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .citation-type-card {
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .citation-type-card.excel { background: rgba(37, 99, 235, 0.15); border-color: rgba(37, 99, 235, 0.3); }
+        .citation-type-card.pdf { background: rgba(107, 114, 128, 0.15); border-color: rgba(107, 114, 128, 0.3); }
+        .citation-type-card.user { background: rgba(5, 150, 105, 0.15); border-color: rgba(5, 150, 105, 0.3); }
+        .citation-type-card.deep { background: rgba(124, 58, 237, 0.15); border-color: rgba(124, 58, 237, 0.3); }
+        .citation-type-card.location { background: rgba(8, 145, 178, 0.15); border-color: rgba(8, 145, 178, 0.3); }
+        .citation-type-card.override { background: rgba(217, 119, 6, 0.15); border-color: rgba(217, 119, 6, 0.3); }
+
+        .citation-type-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .citation-type-name {
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .citation-type-desc {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .note-box {
+            background: rgba(5, 150, 105, 0.1);
+            border: 1px solid rgba(5, 150, 105, 0.3);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin: 20px 28px;
+            font-size: 14px;
+            color: #6ee7b7;
+        }
+
+        .note-box strong {
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-badge">CITATION SYSTEM v2</div>
+        <h1>Citation 数据溯源系统 - 详细交互流程</h1>
+        <p>RAGFlow用于文档解析，提取的结构化数据直接注入Context生成OM（无需Embedding/向量检索）</p>
+        <nav class="nav">
+            <a href="#diagram-1">1. 整体架构</a>
+            <a href="#diagram-2">2. 数据提取流程</a>
+            <a href="#diagram-3">3. OM生成流程</a>
+            <a href="#diagram-4">4. 显示与交互</a>
+            <a href="#diagram-5">5. Hover/Click交互</a>
+            <a href="#diagram-6">6. 编辑值流程</a>
+            <a href="#diagram-7">7. Citation Panel</a>
+            <a href="#diagram-8">8. 状态机</a>
+        </nav>
+    </div>
+
+    <div class="container">
+
+        <!-- Diagram 1: Citation System Overview (Simplified) -->
+        <section class="diagram-section" id="diagram-1">
+            <div class="diagram-header">
+                <div class="diagram-number">1</div>
+                <div class="diagram-title-group">
+                    <div class="diagram-title">Citation System 整体架构</div>
+                    <div class="diagram-subtitle">RAGFlow文档解析 → 结构化数据 → 直接Context注入</div>
+                </div>
+            </div>
+            <div class="note-box">
+                <strong>💡 设计原则：</strong> RAGFlow负责文档解析和数据提取，提取后的结构化数据（通常 < 10K tokens）直接注入Claude Context生成OM，无需使用RAGFlow的Embedding/向量检索能力。
+            </div>
+            <div class="diagram-wrapper">
+                <button class="fullscreen-btn" onclick="toggleFullscreen(this)">⛶ 全屏查看</button>
+                <div class="diagram-content">
+                    <pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontSize': '16px' }}}%%
+flowchart TB
+    subgraph Sources["📥 数据源层"]
+        direction LR
+        Excel["📊 Excel<br/>财务模型"]
+        PDF["📄 PDF<br/>报告文档"]
+        UserInput["✍️ User Input<br/>手动输入"]
+        DeepSearch["🔍 Deep Search<br/>外部API"]
+        LocationAgent["🌍 Location<br/>POI数据"]
+    end
+
+    subgraph Processing["⚙️ RAGFlow (仅用文档解析能力)"]
+        direction TB
+        Parser["📖 文档解析<br/>Excel/PDF结构识别"]
+        Extractor["🎯 数据提取<br/>字段+值匹配"]
+        Linker["🔗 Citation绑定<br/>记录来源位置"]
+    end
+
+    subgraph Storage["💾 结构化存储"]
+        CitationDB[("📋 Citation Database<br/>结构化JSON")]
+    end
+
+    subgraph Generation["🤖 OM生成 (直接Context注入)"]
+        direction TB
+        AssemblePrompt["📝 组装Prompt<br/>注入全部结构化数据"]
+        Claude["🧠 Claude API<br/>生成带Citation标记的文本"]
+    end
+
+    subgraph Display["🖥️ 展示层"]
+        direction TB
+        OMDoc["📄 OM文档"]
+        InlineMarker["🔢 Inline Citation"]
+        Panel["📋 Citation Panel"]
+    end
+
+    subgraph Interaction["👆 用户交互"]
+        direction LR
+        Hover["👁️ Hover"]
+        Click["🖱️ Click"]
+        Edit["✏️ Edit"]
+    end
+
+    Excel --> Parser
+    PDF --> Parser
+    UserInput --> Linker
+    DeepSearch --> Linker
+    LocationAgent --> Linker
+
+    Parser --> Extractor --> Linker
+    Linker --> CitationDB
+
+    CitationDB --> AssemblePrompt
+    AssemblePrompt --> Claude
+    Claude --> OMDoc
+
+    OMDoc --> InlineMarker
+    InlineMarker --> Panel
+
+    Panel --> Hover
+    Panel --> Click
+    Panel --> Edit
+
+    style Sources fill:#1e3a5f,stroke:#3b82f6
+    style Processing fill:#14532d,stroke:#22c55e
+    style Storage fill:#312e81,stroke:#6366f1
+    style Generation fill:#581c87,stroke:#a855f7
+    style Display fill:#7c2d12,stroke:#f97316
+                    </pre>
+                </div>
+            </div>
+            <div class="citation-types">
+                <div class="citation-type-card excel">
+                    <div class="citation-type-icon">📊</div>
+                    <div class="citation-type-name">Excel Data</div>
+                    <div class="citation-type-desc">Sheet名 + Cell位置 + 原始值</div>
+                </div>
+                <div class="citation-type-card pdf">
+                    <div class="citation-type-icon">📄</div>
+                    <div class="citation-type-name">PDF Document</div>
+                    <div class="citation-type-desc">页码 + 区域位置 + 原文摘录</div>
+                </div>
+                <div class="citation-type-card user">
+                    <div class="citation-type-icon">✍️</div>
+                    <div class="citation-type-name">User Input</div>
+                    <div class="citation-type-desc">用户手动输入的数据</div>
+                </div>
+                <div class="citation-type-card deep">
+                    <div class="citation-type-icon">🔍</div>
+                    <div class="citation-type-name">Deep Search</div>
+                    <div class="citation-type-desc">外部API来源 + 查询时间</div>
+                </div>
+                <div class="citation-type-card location">
+                    <div class="citation-type-icon">🌍</div>
+                    <div class="citation-type-name">Location Data</div>
+                    <div class="citation-type-desc">POI来源 + 坐标 + API名称</div>
+                </div>
+                <div class="citation-type-card override">
+                    <div class="citation-type-icon">⚠️</div>
+                    <div class="citation-type-name">Manual Override</div>
+                    <div class="citation-type-desc">用户修改值 + 原始来源保留</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Diagram 2: Data Extraction (No Embedding) -->
+        <section class="diagram-section" id="diagram-2">
+            <div class="diagram-header">
+                <div class="diagram-number">2</div>
+                <div class="diagram-title-group">
+                    <div class="diagram-title">RAGFlow 数据提取与Citation绑定</div>
+                    <div class="diagram-subtitle">RAGFlow解析文档结构，提取数据并绑定溯源信息</div>
+                </div>
+            </div>
+            <div class="diagram-wrapper">
+                <button class="fullscreen-btn" onclick="toggleFullscreen(this)">⛶ 全屏查看</button>
+                <div class="diagram-content">
+                    <pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontSize': '16px' }}}%%
+flowchart TD
+    subgraph Upload["📤 用户上传"]
+        File["📁 Underwriting Model.xlsx"]
+    end
+
+    subgraph Parse["📖 Step 1: 文档解析"]
+        ReadFile["读取文件结构<br/>xlsx → JSON"]
+        IdentifySheets["识别所有Sheet<br/>Summary, Cash Flow, etc."]
+        ParseCells["解析每个Cell<br/>值 + 位置 + 格式"]
+
+        ReadFile --> IdentifySheets --> ParseCells
+    end
+
+    subgraph Extract["🎯 Step 2: 数据提取"]
+        FindLabels["查找标签<br/>Property Value, NOI, Cap Rate"]
+        MatchValues["匹配数值<br/>$15,900,000"]
+        RecordPosition["记录位置<br/>Sheet: Summary, Cell: D12"]
+
+        FindLabels --> MatchValues --> RecordPosition
+    end
+
+    subgraph Bind["🔗 Step 3: 创建Citation对象"]
+        CreateCitation["生成Citation记录<br/>绑定sourceType"]
+    end
+
+    subgraph Store["💾 Step 4: 存储"]
+        SaveToDB["保存到Citation DB<br/>结构化JSON"]
+    end
+
+    File --> ReadFile
+    ParseCells --> FindLabels
+    RecordPosition --> CreateCitation
+    CreateCitation --> SaveToDB
+
+    SaveToDB -.- OutputExample
+
+    subgraph OutputExample["📋 输出: Citation对象"]
+        JSON["
+        {
+          id: 'cit_001',
+          field: 'property_value',
+          display_value: '$15.9M',
+          original_value: 15900000,
+          source_type: 'excel',
+          source_file: 'Underwriting Model.xlsx',
+          location: {
+            sheet: 'Summary',
+            cell: 'D12'
+          }
+        }
+        "]
+    end
+
+    style Parse fill:#1e3a5f,stroke:#3b82f6
+    style Extract fill:#14532d,stroke:#22c55e
+    style Bind fill:#581c87,stroke:#a855f7
+    style Store fill:#312e81,stroke:#6366f1
+    style OutputExample fill:#1e293b,stroke:#475569
+                    </pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Diagram 3: OM Generation with Direct Context Injection -->
+        <section class="diagram-section" id="diagram-3">
+            <div class="diagram-header">
+                <div class="diagram-number">3</div>
+                <div class="diagram-title-group">
+                    <div class="diagram-title">OM生成流程 (直接Context注入)</div>
+                    <div class="diagram-subtitle">无需Embedding，结构化数据直接传给Claude</div>
+                </div>
+            </div>
+            <div class="note-box">
+                <strong>💡 RAGFlow用于解析，Claude用于生成：</strong> RAGFlow解析Excel/PDF提取结构化数据，这些数据（通常 < 10K tokens）直接注入Claude Context生成OM文本，无需RAGFlow的Embedding/向量检索功能。
+            </div>
+            <div class="diagram-wrapper">
+                <button class="fullscreen-btn" onclick="toggleFullscreen(this)">⛶ 全屏查看</button>
+                <div class="diagram-content">
+                    <pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontSize': '16px' }}}%%
+flowchart TD
+    subgraph DataSources["📥 所有数据源"]
+        ExcelData["📊 Excel提取数据<br/>财务指标 + Citation"]
+        PDFData["📄 PDF提取数据<br/>文本内容 + Citation"]
+        LocationData["🌍 Location数据<br/>POI + Demographics + Citation"]
+        UserData["✍️ 用户输入<br/>补充信息 + Citation"]
+    end
+
+    subgraph CitationDB["💾 Citation Database"]
+        AllCitations["所有Citation记录<br/>~50-100条"]
+        StructuredData["结构化数据<br/>JSON格式"]
+    end
+
+    subgraph PromptAssembly["📝 Prompt组装"]
+        Template["加载Prompt模板<br/>OM Section模板"]
+        InjectData["注入全部数据<br/>直接放入Context"]
+        InjectCitations["注入Citation映射<br/>字段 → Citation ID"]
+    end
+
+    subgraph ClaudeAPI["🧠 Claude API调用"]
+        SendPrompt["发送Prompt<br/>~5-15K tokens"]
+        GenerateText["生成文本<br/>引用Citation ID"]
+        ReceiveResponse["接收响应<br/>带[cit_001]标记"]
+    end
+
+    subgraph PostProcess["⚙️ 后处理"]
+        ParseResponse["解析响应"]
+        ReplaceCitations["替换Citation标记<br/>[cit_001] → [1]"]
+        BindToDOM["绑定到文档DOM"]
+    end
+
+    subgraph Output["📄 输出"]
+        OMSection["OM Section<br/>带Inline Citation"]
+    end
+
+    ExcelData --> AllCitations
+    PDFData --> AllCitations
+    LocationData --> AllCitations
+    UserData --> AllCitations
+
+    AllCitations --> StructuredData
+    StructuredData --> Template
+    Template --> InjectData
+    InjectData --> InjectCitations
+
+    InjectCitations --> SendPrompt
+    SendPrompt --> GenerateText
+    GenerateText --> ReceiveResponse
+
+    ReceiveResponse --> ParseResponse
+    ParseResponse --> ReplaceCitations
+    ReplaceCitations --> BindToDOM
+    BindToDOM --> OMSection
+
+    style DataSources fill:#1e3a5f,stroke:#3b82f6
+    style CitationDB fill:#312e81,stroke:#6366f1
+    style PromptAssembly fill:#14532d,stroke:#22c55e
+    style ClaudeAPI fill:#581c87,stroke:#a855f7
+    style PostProcess fill:#7c2d12,stroke:#f97316
+                    </pre>
+                </div>
+            </div>
+            <div class="legend">
+                <div class="legend-item"><div class="legend-color" style="background: #3b82f6;"></div> 数据收集</div>
+                <div class="legend-item"><div class="legend-color" style="background: #6366f1;"></div> Citation存储</div>
+                <div class="legend-item"><div class="legend-color" style="background: #22c55e;"></div> Prompt组装</div>
+                <div class="legend-item"><div class="legend-color" style="background: #a855f7;"></div> AI生成</div>
+                <div class="legend-item"><div class="legend-color" style="background: #f97316;"></div> 后处理</div>
+            </div>
+        </section>
+
+        <!-- Diagram 4: Citation Display Methods -->
+        <section class="diagram-section" id="diagram-4">
+            <div class="diagram-header">
+                <div class="diagram-number">4</div>
+                <div class="diagram-title-group">
+                    <div class="diagram-title">Citation 显示方式</div>
+                    <div class="diagram-subtitle">在OM文档中如何展示Citation标记</div>
+                </div>
+            </div>
+            <div class="diagram-wrapper">
+                <button class="fullscreen-btn" onclick="toggleFullscreen(this)">⛶ 全屏查看</button>
+                <div class="diagram-content">
+                    <pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontSize': '16px' }}}%%
+flowchart TB
+    subgraph TextContent["📝 OM 文本内容"]
+        Sentence["The property value is $15.9M with an NOI of $1.2M..."]
+    end
+
+    subgraph InlineDisplay["🔢 Inline Citation 显示"]
+        direction TB
+        SuperScript["上标数字样式<br/>'$15.9M¹' '$1.2M²'"]
+        ColorCode["颜色编码<br/>蓝色=#2563EB 可点击"]
+        Underline["悬停下划线<br/>cursor: pointer"]
+    end
+
+    subgraph VisualIndicators["🎨 来源类型图标"]
+        direction LR
+        ExcelIcon["📊 蓝色<br/>Excel"]
+        PDFIcon["📄 灰色<br/>PDF"]
+        UserIcon["✍️ 绿色<br/>用户输入"]
+        SearchIcon["🔍 紫色<br/>Deep Search"]
+        LocationIcon["🌍 青色<br/>Location"]
+        OverrideIcon["⚠️ 橙色<br/>手动覆盖"]
+    end
+
+    subgraph Tooltip["💬 Hover Tooltip (300ms)"]
+        QuickInfo["快速预览<br/>来源类型 + 文件名 + 位置"]
+    end
+
+    subgraph Popover["🗂️ Click Popover"]
+        FullDetails["完整详情<br/>原始值 + 位置 + 上下文"]
+        Actions["[查看原文] [编辑值]"]
+    end
+
+    subgraph Panel["📋 Citation Panel"]
+        AllCitations["当前Section所有Citation"]
+        Filter["筛选器"]
+        Summary["统计摘要"]
+    end
+
+    Sentence --> SuperScript
+    SuperScript --> ColorCode
+    ColorCode --> Underline
+
+    Underline -->|"Hover 300ms"| Tooltip
+    Underline -->|"Click"| Popover
+    Underline -->|"侧边栏"| Panel
+
+    Tooltip --> QuickInfo
+    Popover --> FullDetails
+    Popover --> Actions
+    Panel --> AllCitations
+    Panel --> Filter
+    Panel --> Summary
+
+    ExcelIcon -.-> SuperScript
+    PDFIcon -.-> SuperScript
+    UserIcon -.-> SuperScript
+    SearchIcon -.-> SuperScript
+    LocationIcon -.-> SuperScript
+    OverrideIcon -.-> SuperScript
+
+    style TextContent fill:#1e293b,stroke:#475569
+    style InlineDisplay fill:#1e3a5f,stroke:#3b82f6
+    style VisualIndicators fill:#14532d,stroke:#22c55e
+    style Tooltip fill:#312e81,stroke:#6366f1
+    style Popover fill:#581c87,stroke:#a855f7
+    style Panel fill:#7c2d12,stroke:#f97316
+                    </pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Diagram 5: Hover & Click Interaction -->
+        <section class="diagram-section" id="diagram-5">
+            <div class="diagram-header">
+                <div class="diagram-number">5</div>
+                <div class="diagram-title-group">
+                    <div class="diagram-title">Hover / Click 交互状态机</div>
+                    <div class="diagram-subtitle">用户鼠标交互的完整状态转换</div>
+                </div>
+            </div>
+            <div class="diagram-wrapper">
+                <button class="fullscreen-btn" onclick="toggleFullscreen(this)">⛶ 全屏查看</button>
+                <div class="diagram-content">
+                    <pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontSize': '16px' }}}%%
+stateDiagram-v2
+    [*] --> Idle: 页面加载
+
+    Idle --> HoverStart: 鼠标进入Citation
+    HoverStart --> HoverWait: 启动300ms计时器
+
+    HoverWait --> Idle: 鼠标离开(取消)
+    HoverWait --> TooltipShow: 300ms到达
+
+    TooltipShow --> Idle: 鼠标离开
+    TooltipShow --> PopoverOpen: 点击
+
+    Idle --> PopoverOpen: 直接点击
+
+    PopoverOpen --> ViewOriginal: [查看原文]
+    PopoverOpen --> EditMode: [编辑值]
+    PopoverOpen --> Idle: 点击外部/ESC
+
+    ViewOriginal --> FilePreview: 打开预览
+    FilePreview --> PopoverOpen: 关闭
+
+    EditMode --> EditForm: 显示表单
+    EditForm --> SaveChange: 保存
+    EditForm --> PopoverOpen: 取消
+    SaveChange --> UpdateCitation: 更新DB
+    UpdateCitation --> Idle: 刷新UI
+
+    note right of HoverWait: 防抖300ms
+    note right of TooltipShow: 轻量预览
+    note right of PopoverOpen: 完整详情
+    note right of EditMode: Manual Override
+                    </pre>
+                </div>
+            </div>
+            <div class="legend">
+                <div class="legend-item"><div class="legend-color" style="background: #3b82f6;"></div> Idle 空闲</div>
+                <div class="legend-item"><div class="legend-color" style="background: #8b5cf6;"></div> Hover 悬停</div>
+                <div class="legend-item"><div class="legend-color" style="background: #10b981;"></div> Popover 详情</div>
+                <div class="legend-item"><div class="legend-color" style="background: #f59e0b;"></div> Edit 编辑</div>
+            </div>
+        </section>
+
+        <!-- Diagram 6: Edit Value Flow -->
+        <section class="diagram-section" id="diagram-6">
+            <div class="diagram-header">
+                <div class="diagram-number">6</div>
+                <div class="diagram-title-group">
+                    <div class="diagram-title">编辑值 (Manual Override) 流程</div>
+                    <div class="diagram-subtitle">用户修改Citation值的完整处理逻辑</div>
+                </div>
+            </div>
+            <div class="diagram-wrapper">
+                <button class="fullscreen-btn" onclick="toggleFullscreen(this)">⛶ 全屏查看</button>
+                <div class="diagram-content">
+                    <pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontSize': '16px' }}}%%
+flowchart TD
+    Start(["🖱️ 点击Citation"]) --> OpenPopover["打开详情"]
+    OpenPopover --> ClickEdit["点击 Edit Value"]
+
+    ClickEdit --> ShowForm["显示编辑表单"]
+
+    subgraph EditForm["📝 编辑表单"]
+        OriginalValue["原始值 (只读)<br/>$15,900,000 from Excel D12"]
+        NewValueInput["新值输入框"]
+        ReasonInput["修改原因 (可选)"]
+        Warning["⚠️ 将标记为 Manual Override"]
+    end
+
+    ShowForm --> OriginalValue --> NewValueInput --> ReasonInput --> Warning
+
+    Warning --> Decision{"用户操作"}
+
+    Decision -->|"取消"| Cancel["关闭表单"]
+    Decision -->|"保存"| Validate["验证输入"]
+
+    Cancel --> End1(["返回"])
+
+    Validate --> ValidCheck{"格式正确?"}
+    ValidCheck -->|"否"| ShowError["显示错误"] --> NewValueInput
+    ValidCheck -->|"是"| UpdateDB["更新数据库"]
+
+    subgraph DBOps["💾 数据库操作"]
+        KeepOriginal["保留原始记录"]
+        AddOverride["添加override字段"]
+        ChangeType["type → manual_override"]
+    end
+
+    UpdateDB --> KeepOriginal --> AddOverride --> ChangeType
+
+    ChangeType --> RefreshUI["刷新UI"]
+
+    subgraph UIUpdate["🖥️ UI更新"]
+        UpdateText["更新显示值"]
+        ChangeIcon["图标变橙色 ⚠️"]
+        ShowToast["显示成功提示"]
+    end
+
+    RefreshUI --> UpdateText --> ChangeIcon --> ShowToast
+
+    ShowToast --> End2(["✅ 完成"])
+
+    style EditForm fill:#1e3a5f,stroke:#3b82f6
+    style DBOps fill:#14532d,stroke:#22c55e
+    style UIUpdate fill:#581c87,stroke:#a855f7
+                    </pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Diagram 7: Citation Panel -->
+        <section class="diagram-section" id="diagram-7">
+            <div class="diagram-header">
+                <div class="diagram-number">7</div>
+                <div class="diagram-title-group">
+                    <div class="diagram-title">Citation Panel 侧边栏</div>
+                    <div class="diagram-subtitle">侧边栏的功能和操作</div>
+                </div>
+            </div>
+            <div class="diagram-wrapper">
+                <button class="fullscreen-btn" onclick="toggleFullscreen(this)">⛶ 全屏查看</button>
+                <div class="diagram-content">
+                    <pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontSize': '16px' }}}%%
+flowchart TB
+    subgraph Header["📋 Panel头部"]
+        Title["CITATIONS"]
+        Refresh["🔄 刷新"]
+        Filter["筛选: [All ▼]"]
+    end
+
+    subgraph FilterMenu["🔽 筛选菜单"]
+        All["全部"]
+        Excel["📊 Excel"]
+        PDF["📄 PDF"]
+        User["✍️ 用户输入"]
+        Search["🔍 Deep Search"]
+        Location["🌍 Location"]
+        Override["⚠️ 手动覆盖"]
+    end
+
+    subgraph List["📜 Citation列表"]
+        Item1["[1] $15.9M • 📊 Excel D12"]
+        Item2["[2] $1.2M • 📊 Excel E15"]
+        Item3["[3] Dallas metro... • 🔍 Census"]
+        Item4["[4] Whole Foods • 🌍 Foursquare"]
+    end
+
+    subgraph Actions["🖱️ 列表操作"]
+        HoverHighlight["Hover → 高亮文档文本"]
+        ClickScroll["Click → 滚动到位置"]
+        RightMenu["Right Click → 菜单"]
+    end
+
+    subgraph ContextMenu["📋 右键菜单"]
+        View["👁️ 查看原文"]
+        Edit["✏️ 编辑"]
+        Copy["📋 复制"]
+        Remove["🗑️ 移除"]
+    end
+
+    subgraph Summary["📊 统计"]
+        Stats["12 Excel / 3 Search / 2 User"]
+        Export["[📤 导出列表]"]
+    end
+
+    Filter --> FilterMenu
+    FilterMenu --> List
+
+    Item1 & Item2 & Item3 & Item4 --> Actions
+    RightMenu --> ContextMenu
+
+    List --> Summary
+
+    style Header fill:#14532d,stroke:#22c55e
+    style List fill:#312e81,stroke:#6366f1
+    style Actions fill:#581c87,stroke:#a855f7
+    style ContextMenu fill:#7c2d12,stroke:#f97316
+                    </pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Diagram 8: Citation Lifecycle -->
+        <section class="diagram-section" id="diagram-8">
+            <div class="diagram-header">
+                <div class="diagram-number">8</div>
+                <div class="diagram-title-group">
+                    <div class="diagram-title">Citation 生命周期状态机</div>
+                    <div class="diagram-subtitle">单个Citation的完整生命周期</div>
+                </div>
+            </div>
+            <div class="diagram-wrapper">
+                <button class="fullscreen-btn" onclick="toggleFullscreen(this)">⛶ 全屏查看</button>
+                <div class="diagram-content">
+                    <pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontSize': '16px' }}}%%
+stateDiagram-v2
+    [*] --> Created: 数据提取
+
+    state Created {
+        [*] --> Pending
+        Pending --> Validated: 验证通过
+        Pending --> Invalid: 验证失败
+        Invalid --> Pending: 重新验证
+    }
+
+    Created --> Active: 绑定到OM
+
+    state Active {
+        [*] --> Normal
+        Normal --> Highlighted: Hover
+        Highlighted --> Normal: 离开
+        Normal --> Selected: Click
+        Selected --> Normal: 关闭
+        Selected --> Editing: 编辑
+        Editing --> Normal: 完成
+    }
+
+    Active --> Modified: 用户修改值
+
+    state Modified {
+        [*] --> Override
+        Override --> TrackHistory: 记录历史
+    }
+
+    Modified --> Active: 继续使用
+
+    Active --> Stale: 源文件更新
+
+    state Stale {
+        [*] --> NeedsReview
+        NeedsReview --> Refreshed: 接受新值
+        NeedsReview --> Kept: 保留旧值
+    }
+
+    Stale --> Active: 解决冲突
+
+    Active --> Deleted: 删除
+    Deleted --> [*]
+
+    note right of Created: 初始验证
+    note right of Active: 正常使用
+    note right of Modified: 保留历史
+    note right of Stale: 需要同步
+                    </pre>
+                </div>
+            </div>
+            <div class="legend">
+                <div class="legend-item"><div class="legend-color" style="background: #6366f1;"></div> Created 创建</div>
+                <div class="legend-item"><div class="legend-color" style="background: #10b981;"></div> Active 活跃</div>
+                <div class="legend-item"><div class="legend-color" style="background: #f59e0b;"></div> Modified 已修改</div>
+                <div class="legend-item"><div class="legend-color" style="background: #ef4444;"></div> Stale 过期</div>
+            </div>
+        </section>
+
+    </div>
+
+    <footer class="footer">
+        <p>Citation System v2 - 简化架构，无需Embedding</p>
+        <p>CRE OM Generator | Updated: 2026-01-12</p>
+    </footer>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'dark',
+            themeVariables: {
+                primaryColor: '#059669',
+                primaryTextColor: '#fff',
+                primaryBorderColor: '#10b981',
+                lineColor: '#6ee7b7',
+                secondaryColor: '#1e293b',
+                tertiaryColor: '#0f172a',
+                background: '#1e293b',
+                mainBkg: '#1e293b',
+                nodeBorder: '#475569',
+                clusterBkg: 'rgba(5, 150, 105, 0.1)',
+                clusterBorder: 'rgba(5, 150, 105, 0.3)',
+                titleColor: '#fff',
+                edgeLabelBackground: '#1e293b',
+                nodeTextColor: '#e2e8f0',
+                fontSize: '16px',
+                stateBkg: '#1e293b',
+                stateLabelColor: '#fff'
+            },
+            flowchart: {
+                useMaxWidth: false,
+                htmlLabels: true,
+                curve: 'basis',
+                padding: 20,
+                nodeSpacing: 50,
+                rankSpacing: 70
+            },
+            stateDiagram: {
+                useMaxWidth: false
+            },
+            securityLevel: 'loose'
+        });
+
+        function toggleFullscreen(btn) {
+            const section = btn.closest('.diagram-section');
+            section.classList.toggle('fullscreen');
+            btn.textContent = section.classList.contains('fullscreen') ? '✕ 关闭' : '⛶ 全屏查看';
+        }
+    </script>
+</body>
+</html>
