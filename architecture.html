@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRE OM Generator - System Architecture</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            padding: 24px 48px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        .nav {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+
+        .nav a {
+            padding: 8px 16px;
+            background: rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 8px;
+            color: #a5b4fc;
+            text-decoration: none;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .nav a:hover {
+            background: rgba(99, 102, 241, 0.4);
+            color: #fff;
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 32px 48px;
+        }
+
+        .diagram-section {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            margin-bottom: 48px;
+            overflow: hidden;
+        }
+
+        .diagram-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .diagram-number {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+            color: #fff;
+        }
+
+        .diagram-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .diagram-subtitle {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-left: auto;
+        }
+
+        .diagram-content {
+            padding: 48px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.02);
+            overflow-x: auto;
+            min-height: 500px;
+        }
+
+        .mermaid {
+            width: 100%;
+            min-width: 1000px;
+        }
+
+        .mermaid svg {
+            width: 100% !important;
+            min-width: 1000px !important;
+            height: auto !important;
+            min-height: 400px !important;
+        }
+
+        .legend {
+            padding: 16px 24px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 32px;
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        /* 全屏按钮 */
+        .fullscreen-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            padding: 8px 12px;
+            background: rgba(99, 102, 241, 0.3);
+            border: 1px solid rgba(99, 102, 241, 0.5);
+            border-radius: 6px;
+            color: #a5b4fc;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .fullscreen-btn:hover {
+            background: rgba(99, 102, 241, 0.5);
+            color: #fff;
+        }
+
+        .diagram-wrapper {
+            position: relative;
+        }
+
+        /* 全屏模式 */
+        .diagram-section.fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 1000;
+            margin: 0;
+            border-radius: 0;
+            overflow: auto;
+        }
+
+        .diagram-section.fullscreen .diagram-content {
+            min-height: calc(100vh - 120px);
+            padding: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .header, .container {
+                padding: 16px;
+            }
+
+            .diagram-content {
+                padding: 24px;
+            }
+
+            .nav {
+                gap: 8px;
+            }
+
+            .nav a {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>CRE OM Generator - System Architecture</h1>
+        <p>Commercial Real Estate Offering Memorandum Generator | Technical Architecture Documentation</p>
+        <nav class="nav">
+            <a href="#diagram-1">1. System Overview</a>
+            <a href="#diagram-2">2. User Flow</a>
+            <a href="#diagram-3">3. AI Agents</a>
+            <a href="#diagram-4">4. Location Agent</a>
+            <a href="#diagram-5">5. Citation System</a>
+            <a href="#diagram-6">6. Data Flow</a>
+            <a href="#diagram-7">7. Tech Stack</a>
+        </nav>
+    </div>
+
+    <div class="container">
+
+        <!-- Diagram 1: High-Level Architecture -->
+        <section class="diagram-section" id="diagram-1">
+            <div class="diagram-header">
+                <div class="diagram-number">1</div>
+                <div class="diagram-title">High-Level System Architecture</div>
+                <div class="diagram-subtitle">Frontend → API → AI → Data → External</div>
+            </div>
+            <div class="diagram-wrapper">
+                <button class="fullscreen-btn" onclick="toggleFullscreen(this)">⛶ Fullscreen</button>
+                <div class="diagram-content">
+                    <pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontSize': '16px' }}}%%
+flowchart TB
+    subgraph Client["🖥️ Frontend (Next.js 16.1)"]
+        UI["🌐 Web UI"]
+        Editor["📝 OM Editor"]
+        Preview["👁️ PDF Preview"]
+    end
+
+    subgraph API["⚡ Backend API (tRPC)"]
+        Gateway["🚪 API Gateway"]
+        Auth["🔐 Auth Service"]
+        ProjectService["📁 Project Service"]
+        ExportService["📤 Export Service"]
+    end
+
+    subgraph AILayer["🤖 AI Layer"]
+        Orchestrator["🎯 AI Orchestrator"]
+
+        subgraph Agents["AI Agents"]
+            DataAgent["📊 Data Extraction"]
+            WritingAgent["✍️ Writing Agent"]
+            LocationAgent["🌍 Location Intelligence"]
+            ValidationAgent["✅ Validation Agent"]
+        end
+    end
+
+    subgraph DataLayer["💾 Data Layer"]
+        PostgreSQL[("🐘 PostgreSQL")]
+        Redis[("⚡ Redis Cache")]
+        S3[("☁️ S3 Storage")]
+    end
+
+    subgraph External["🌐 External Services"]
+        RAGFlow["🔍 RAGFlow Engine"]
+        Claude["🧠 Claude API"]
+        LocationAPIs["📍 Location APIs"]
+        MapService["🗺️ Map Service"]
+    end
+
+    UI --> Gateway
+    Editor --> Gateway
+    Preview --> Gateway
+
+    Gateway --> Auth
+    Gateway --> ProjectService
+    Gateway --> ExportService
+
+    ProjectService --> Orchestrator
+    Orchestrator --> DataAgent
+    Orchestrator --> WritingAgent
+    Orchestrator --> LocationAgent
+    Orchestrator --> ValidationAgent
+
+    DataAgent --> RAGFlow
+    WritingAgent --> Claude
+    LocationAgent --> LocationAPIs
+    LocationAgent --> MapService
+    ValidationAgent --> Claude
+
+    ProjectService --> PostgreSQL
+    ProjectService --> Redis
+    ProjectService --> S3
+
+    RAGFlow --> S3
+                    </pre>
+                </div>
+            </div>
+            <div class="legend">
+                <div class="legend-item"><div class="legend-color" style="background: #6366f1;"></div> Frontend Layer</div>
+                <div class="legend-item"><div class="legend-color" style="background: #10b981;"></div> Backend Services</div>
+                <div class="legend-item"><div class="legend-color" style="background: #8b5cf6;"></div> AI Components</div>
+                <div class="legend-item"><div class="legend-color" style="background: #f59e0b;"></div> Data Storage</div>
+            </div>
+        </section>
+
+        <!-- Diagram 2: User Flow -->
+        <section class="diagram-section" id="diagram-2">
+            <div class="diagram-header">
+                <div class="diagram-number">2</div>
+                <div class="diagram-title">User Journey: Create OM Flow</div>
+                <div class="diagram-subtitle">10-Step Process from Login to Export</div>
+            </div>
+            <div class="diagram-wrapper">
+                <button class="fullscreen-btn" onclick="toggleFullscreen(this)">⛶ Fullscreen</button>
+                <div class="diagram-content">
+                    <pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontSize': '16px' }}}%%
+flowchart TD
+    Start(["🚀 User Start"]) --> Login["🔐 Login / Register"]
+    Login --> Dashboard["📊 Enter Dashboard"]
+    Dashboard --> NewProject["➕ Create New Project"]
+
+    NewProject --> Step1["📋 Step 1: Enter Deal Info"]
+    Step1 --> Step2["📁 Step 2: Upload Files"]
+    Step2 --> Step3["🏷️ Step 3: AI Data Labeling"]
+    Step3 --> Step4["🌍 Step 4: Location Intelligence"]
+    Step4 --> Step5["🗺️ Step 5: Select Map Types"]
+    Step5 --> Step6["🎨 Step 6: Choose Template"]
+    Step6 --> Step7["🤖 Step 7: AI Generate OM"]
+
+    Step7 --> Draft["📄 Generate Draft"]
+    Draft --> Review{"👀 User Review"}
+
+    Review -->|"❌ Need Changes"| Edit["✏️ Editor Modifications"]
+    Edit --> Review
+
+    Review -->|"✅ Satisfied"| Export["📥 Export PDF"]
+    Export --> Done(["🎉 Complete!"])
+
+    style Step4 fill:#0891B2,color:#fff,stroke:#0891B2
+    style Step7 fill:#7C3AED,color:#fff,stroke:#7C3AED
+    style Done fill:#10b981,color:#fff,stroke:#10b981
+    style Start fill:#6366f1,color:#fff,stroke:#6366f1
+                    </pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Diagram 3: AI Agent Orchestration -->
+        <section class="diagram-section" id="diagram-3">
+            <div class="diagram-header">
+                <div class="diagram-number">3</div>
+                <div class="diagram-title">AI Agent Orchestration</div>
+                <div class="diagram-subtitle">Parallel & Sequential Agent Execution</div>
+            </div>
+            <div class="diagram-wrapper">
+                <button class="fullscreen-btn" onclick="toggleFullscreen(this)">⛶ Fullscreen</button>
+                <div class="diagram-content">
+                    <pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontSize': '16px' }}}%%
+flowchart TB
+    subgraph Input["📥 Input Layer"]
+        Files["📁 User Files<br/>(Excel, PDF, Images)"]
+        Address["📍 Property Address"]
+        Template["🎨 Template Selection"]
+    end
+
+    subgraph Orchestrator["🎯 AI Orchestrator"]
+        Queue["📋 Task Queue"]
+        Scheduler["⚙️ Scheduler"]
+        Monitor["📊 Status Monitor"]
+
+        Queue --> Scheduler
+        Scheduler --> Monitor
+    end
+
+    subgraph ParallelAgents["⚡ Parallel Execution"]
+        subgraph DataExtraction["📊 Data Extraction Agent"]
+            Parse["1️⃣ Parse Files"]
+            Extract["2️⃣ Extract Data"]
+            Cite["3️⃣ Generate Citations"]
+            Parse --> Extract --> Cite
+        end
+
+        subgraph Location["🌍 Location Intelligence Agent"]
+            Geocode["1️⃣ Geocoding"]
+            FetchPOI["2️⃣ Fetch POI"]
+            FetchDemo["3️⃣ Fetch Demographics"]
+            GenSummary["4️⃣ Generate Summary"]
+            Geocode --> FetchPOI --> FetchDemo --> GenSummary
+        end
+    end
+
+    subgraph Sequential["🔄 Sequential Processing"]
+        Writing["✍️ Writing Agent<br/>Generate 10 Sections"]
+        Validation["✅ Validation Agent<br/>Data Verification"]
+        Writing --> Validation
+    end
+
+    subgraph Output["📤 Output"]
+        OMDraft["📄 OM Draft"]
+        Citations["🔗 Citation Index"]
+    end
+
+    Files --> Queue
+    Address --> Queue
+    Template --> Queue
+
+    Scheduler --> DataExtraction
+    Scheduler --> Location
+
+    Cite --> Writing
+    GenSummary --> Writing
+
+    Validation --> OMDraft
+    Validation --> Citations
+
+    style DataExtraction fill:#2563EB,color:#fff
+    style Location fill:#0891B2,color:#fff
+    style Writing fill:#7C3AED,color:#fff
+    style Validation fill:#059669,color:#fff
+                    </pre>
+                </div>
+            </div>
+            <div class="legend">
+                <div class="legend-item"><div class="legend-color" style="background: #2563EB;"></div> Data Extraction Agent</div>
+                <div class="legend-item"><div class="legend-color" style="background: #0891B2;"></div> Location Agent</div>
+                <div class="legend-item"><div class="legend-color" style="background: #7C3AED;"></div> Writing Agent</div>
+                <div class="legend-item"><div class="legend-color" style="background: #059669;"></div> Validation Agent</div>
+            </div>
+        </section>
+
+        <!-- Diagram 4: Location Intelligence Agent -->
+        <section class="diagram-section" id="diagram-4">
+            <div class="diagram-header">
+                <div class="diagram-number">4</div>
+                <div class="diagram-title">Location Intelligence Agent - Detailed Flow</div>
+                <div class="diagram-subtitle">Address Geocoding → Data Fetch → AI Summary → Citation</div>
+            </div>
+            <div class="diagram-wrapper">
+                <button class="fullscreen-btn" onclick="toggleFullscreen(this)">⛶ Fullscreen</button>
+                <div class="diagram-content">
+                    <pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontSize': '16px' }}}%%
+flowchart TD
+    Start(["🚀 Start"]) --> Input["📍 Receive Property Address<br/>e.g. 1234 Main St, Dallas, TX"]
+    Input --> Geocode["🌐 Geocoding API<br/>Address → Coordinates"]
+
+    Geocode -->|"✅ Success"| Parallel{"⚡ Parallel Data Fetch"}
+    Geocode -->|"❌ Failed"| Suggest["💡 Suggest Alternatives"]
+    Suggest --> Retry{"🔄 User Choice"}
+    Retry -->|"🔄 Retry"| Geocode
+    Retry -->|"⏭️ Skip"| Skip(["⏭️ Skip Location"])
+
+    Parallel --> POI["🏬 Foursquare API<br/>Retail, Dining, Services<br/>~50 POIs"]
+    Parallel --> Transit["🚇 HERE Maps API<br/>Transit Stations, Highways<br/>~20 Items"]
+    Parallel --> Schools["🏫 GreatSchools API<br/>K-12 Schools, Ratings<br/>~15 Schools"]
+    Parallel --> Demo["📊 US Census API<br/>Population, Income, Age<br/>Demographics"]
+    Parallel --> Employers["🏢 Major Employers<br/>LinkedIn / Manual Data<br/>~10 Companies"]
+
+    POI --> Merge["🔀 Merge Results"]
+    Transit --> Merge
+    Schools --> Merge
+    Demo --> Merge
+    Employers --> Merge
+
+    Merge --> Filter["🎛️ User Filter POIs<br/>Select/Deselect Items"]
+    Filter --> AI["🤖 Claude API<br/>Generate Market Overview Text"]
+
+    AI --> Citation["🔗 Bind Citations<br/>Every Data Point → Source"]
+    Citation --> Output["📄 Output to OM<br/>Market Overview Section"]
+
+    Output --> End(["✅ Complete"])
+
+    style Geocode fill:#2563EB,color:#fff,stroke:#2563EB
+    style Parallel fill:#0891B2,color:#fff,stroke:#0891B2
+    style AI fill:#7C3AED,color:#fff,stroke:#7C3AED
+    style Citation fill:#059669,color:#fff,stroke:#059669
+    style End fill:#10b981,color:#fff,stroke:#10b981
+                    </pre>
+                </div>
+            </div>
+            <div class="legend">
+                <div class="legend-item"><div class="legend-color" style="background: #2563EB;"></div> Geocoding</div>
+                <div class="legend-item"><div class="legend-color" style="background: #0891B2;"></div> Parallel Fetch</div>
+                <div class="legend-item"><div class="legend-color" style="background: #7C3AED;"></div> AI Processing</div>
+                <div class="legend-item"><div class="legend-color" style="background: #059669;"></div> Citation Binding</div>
+            </div>
+        </section>
+
+        <!-- Diagram 5: Citation System -->
+        <section class="diagram-section" id="diagram-5">
+            <div class="diagram-header">
+                <div class="diagram-number">5</div>
+                <div class="diagram-title">Citation Traceability System</div>
+                <div class="diagram-subtitle">Source → RAGFlow → Citation DB → User Interaction</div>
+            </div>
+            <div class="diagram-wrapper">
+                <button class="fullscreen-btn" onclick="toggleFullscreen(this)">⛶ Fullscreen</button>
+                <div class="diagram-content">
+                    <pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontSize': '16px' }}}%%
+flowchart TD
+    subgraph Sources["📥 Data Sources"]
+        Excel["📊 Excel Files<br/>Financial Data"]
+        PDF["📄 PDF Documents<br/>Reports, Brochures"]
+        User["✍️ User Input<br/>Manual Entry"]
+        DeepSearch["🔍 Deep Search<br/>External Data"]
+        Location["🌍 Location Agent<br/>POI, Demographics"]
+    end
+
+    subgraph RAGFlow["🔍 RAGFlow (仅用文档解析能力)"]
+        Parse["📖 文档解析<br/>Excel/PDF结构识别"]
+        Extract["🎯 数据提取<br/>字段+值匹配"]
+        Bind["🔗 Citation绑定<br/>记录来源位置"]
+
+        Parse --> Extract --> Bind
+    end
+
+    subgraph CitationDB["💾 Citation Database"]
+        CitationTable[("🔗 citation_records<br/>ID, Value, SourceType")]
+        SourceTable[("📁 source_files<br/>File Path, Type, Hash")]
+        ValueTable[("📊 extracted_values<br/>Field, Value, Location")]
+    end
+
+    subgraph OMDocument["📄 OM Document"]
+        Text["📝 Text Content"]
+        Inline["🔢 Inline Citations<br/>[1] [2] [3]"]
+        Panel["📋 Citation Panel<br/>Sidebar View"]
+    end
+
+    subgraph UserAction["👆 User Interactions"]
+        Hover["👁️ Hover: Quick Preview"]
+        Click["🖱️ Click: Full Details"]
+        Edit["✏️ Edit Value"]
+        Jump["🔗 Jump to Original"]
+    end
+
+    Excel --> Parse
+    PDF --> Parse
+    Bind --> CitationTable
+    User --> CitationTable
+    DeepSearch --> CitationTable
+    Location --> CitationTable
+
+    CitationTable --> Inline
+    SourceTable --> CitationTable
+    ValueTable --> CitationTable
+
+    Inline --> Text
+
+    Text --> Hover
+    Hover --> Panel
+    Panel --> Click
+    Click --> Jump
+    Click --> Edit
+
+    Edit -->|"⚠️ Manual Override"| CitationTable
+
+    style Location fill:#0891B2,color:#fff,stroke:#0891B2
+    style CitationTable fill:#059669,color:#fff,stroke:#059669
+    style RAGFlow fill:#2563EB,color:#fff,stroke:#2563EB
+                    </pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Diagram 6: Data Flow -->
+        <section class="diagram-section" id="diagram-6">
+            <div class="diagram-header">
+                <div class="diagram-number">6</div>
+                <div class="diagram-title">Data Flow Architecture</div>
+                <div class="diagram-subtitle">Upload → Processing → Extraction → Generation → Output</div>
+            </div>
+            <div class="diagram-wrapper">
+                <button class="fullscreen-btn" onclick="toggleFullscreen(this)">⛶ Fullscreen</button>
+                <div class="diagram-content">
+                    <pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontSize': '16px' }}}%%
+flowchart LR
+    subgraph Upload["📤 File Upload"]
+        U1["📊 Excel<br/>Underwriting Models"]
+        U2["📄 PDF<br/>Reports, Brochures"]
+        U3["🖼️ Images<br/>Property Photos"]
+        U4["📝 Word/PPT<br/>Presentations"]
+    end
+
+    subgraph Processing["⚙️ Processing Layer"]
+        S3Store["☁️ S3 Storage<br/>File Repository"]
+        RAG["🔍 RAGFlow<br/>Document Parser"]
+        ImageProc["🖼️ Image Processing<br/>Color Extraction"]
+    end
+
+    subgraph Extraction["🎯 Data Extraction"]
+        Financial["💰 Financial Data<br/>NOI, Cap Rate, Value"]
+        Property["🏢 Property Data<br/>Units, SF, Year Built"]
+        Market["📈 Market Data<br/>Demographics, Trends"]
+        Photos["📸 Photo Assets<br/>Categorized Images"]
+    end
+
+    subgraph Generation["🤖 Content Generation"]
+        Sections["📑 10 OM Sections<br/>AI-Generated Content"]
+        Charts["📊 Charts<br/>Financial Visualizations"]
+        Maps["🗺️ Maps<br/>Location & Aerials"]
+    end
+
+    subgraph Output["📥 Output"]
+        Draft["📄 OM Draft<br/>Editable in Browser"]
+        PDFOut["📕 PDF Export<br/>High Quality Output"]
+        Share["🔗 Share Link<br/>Secure Sharing"]
+    end
+
+    U1 --> S3Store
+    U2 --> S3Store
+    U3 --> S3Store
+    U4 --> S3Store
+
+    S3Store --> RAG
+    S3Store --> ImageProc
+
+    RAG --> Financial
+    RAG --> Property
+    RAG --> Market
+    ImageProc --> Photos
+
+    Financial --> Sections
+    Property --> Sections
+    Market --> Sections
+    Photos --> Sections
+
+    Sections --> Draft
+    Charts --> Draft
+    Maps --> Draft
+
+    Draft --> PDFOut
+    Draft --> Share
+
+    style Draft fill:#6366f1,color:#fff,stroke:#6366f1
+    style PDFOut fill:#10b981,color:#fff,stroke:#10b981
+    style RAG fill:#2563EB,color:#fff,stroke:#2563EB
+                    </pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Diagram 7: Tech Stack -->
+        <section class="diagram-section" id="diagram-7">
+            <div class="diagram-header">
+                <div class="diagram-number">7</div>
+                <div class="diagram-title">Technology Stack Architecture</div>
+                <div class="diagram-subtitle">2026 Latest Versions</div>
+            </div>
+            <div class="diagram-wrapper">
+                <button class="fullscreen-btn" onclick="toggleFullscreen(this)">⛶ Fullscreen</button>
+                <div class="diagram-content">
+                    <pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontSize': '16px' }}}%%
+flowchart TB
+    subgraph Frontend["🖥️ Frontend Layer"]
+        Next["⚫ Next.js 16.1<br/>App Router, Turbopack"]
+        React["⚛️ React 19.2<br/>React Compiler"]
+        Tailwind["🎨 Tailwind CSS 4.1<br/>5x Faster Build"]
+        Editor["📝 TipTap Editor<br/>Rich Text"]
+        MapGL["🗺️ Mapbox GL<br/>Interactive Maps"]
+    end
+
+    subgraph Backend["⚡ Backend Layer"]
+        Node["💚 Node.js 24 LTS<br/>Native Fetch, TS"]
+        tRPC["🔌 tRPC 11.6<br/>Type-Safe API"]
+        Prisma["🔷 Prisma 7.2<br/>Type-Safe ORM"]
+        Queue["📋 BullMQ<br/>Job Queue"]
+    end
+
+    subgraph AI["🤖 AI Services"]
+        Claude["🧠 Claude Opus 4.5<br/>1M Context Window"]
+        RAGFlow["🔍 RAGFlow 0.23.1<br/>文档解析 (不用RAG)"]
+    end
+
+    subgraph Database["💾 Database Layer"]
+        PG[("🐘 PostgreSQL 17<br/>Primary Database")]
+        Redis[("⚡ Redis 8<br/>Cache & Sessions")]
+        S3[("☁️ AWS S3<br/>File Storage")]
+    end
+
+    subgraph External["🌐 External APIs"]
+        Foursquare["📍 Foursquare<br/>Places API"]
+        Census["📊 US Census<br/>Demographics"]
+        Schools["🏫 GreatSchools<br/>School Ratings"]
+        HERE["🗺️ HERE Maps<br/>Geocoding"]
+    end
+
+    Frontend --> Backend
+    Backend --> AI
+    Backend --> Database
+    AI --> External
+
+    style Claude fill:#7C3AED,color:#fff,stroke:#7C3AED
+    style RAGFlow fill:#2563EB,color:#fff,stroke:#2563EB
+    style Next fill:#000,color:#fff,stroke:#333
+    style PG fill:#336791,color:#fff,stroke:#336791
+    style React fill:#61dafb,color:#000,stroke:#61dafb
+                    </pre>
+                </div>
+            </div>
+            <div class="legend">
+                <div class="legend-item"><div class="legend-color" style="background: #000;"></div> Next.js 16.1</div>
+                <div class="legend-item"><div class="legend-color" style="background: #61dafb;"></div> React 19.2</div>
+                <div class="legend-item"><div class="legend-color" style="background: #7C3AED;"></div> Claude Opus 4.5</div>
+                <div class="legend-item"><div class="legend-color" style="background: #2563EB;"></div> RAGFlow 0.23.1</div>
+                <div class="legend-item"><div class="legend-color" style="background: #336791;"></div> PostgreSQL 17</div>
+            </div>
+        </section>
+
+    </div>
+
+    <footer class="footer">
+        <p>CRE OM Generator - System Architecture Documentation</p>
+        <p>Generated: 2026-01-12 | Version: 1.2</p>
+    </footer>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'dark',
+            themeVariables: {
+                primaryColor: '#6366f1',
+                primaryTextColor: '#fff',
+                primaryBorderColor: '#818cf8',
+                lineColor: '#94a3b8',
+                secondaryColor: '#1e293b',
+                tertiaryColor: '#0f172a',
+                background: '#1e293b',
+                mainBkg: '#1e293b',
+                nodeBorder: '#475569',
+                clusterBkg: 'rgba(99, 102, 241, 0.15)',
+                clusterBorder: 'rgba(99, 102, 241, 0.4)',
+                titleColor: '#fff',
+                edgeLabelBackground: '#1e293b',
+                nodeTextColor: '#e2e8f0',
+                fontSize: '16px'
+            },
+            flowchart: {
+                useMaxWidth: false,
+                htmlLabels: true,
+                curve: 'basis',
+                padding: 20,
+                nodeSpacing: 50,
+                rankSpacing: 80
+            },
+            securityLevel: 'loose'
+        });
+
+        function toggleFullscreen(btn) {
+            const section = btn.closest('.diagram-section');
+            section.classList.toggle('fullscreen');
+            btn.textContent = section.classList.contains('fullscreen') ? '✕ Close' : '⛶ Fullscreen';
+        }
+    </script>
+</body>
+</html>
