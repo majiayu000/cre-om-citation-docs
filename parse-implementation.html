@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OM Generator PARSE Stage 实现方案</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <style>
+        .section { scroll-margin-top: 80px; }
+        .nav-link { transition: all 0.2s; }
+        .nav-link:hover { background-color: rgba(16, 185, 129, 0.1); }
+        .nav-link.active { background-color: rgba(16, 185, 129, 0.2); border-left: 3px solid #10b981; }
+        .diagram-container { background: #f8fafc; border-radius: 8px; padding: 20px; margin: 20px 0; }
+        .mermaid { display: flex; justify-content: center; }
+        .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 12px; font-weight: 500; }
+        .badge-no-llm { background: #dcfce7; color: #166534; }
+        .badge-need-llm { background: #fef3c7; color: #92400e; }
+        .badge-recommended { background: #dbeafe; color: #1e40af; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #e2e8f0; padding: 12px; text-align: left; }
+        th { background: #f1f5f9; font-weight: 600; }
+        tr:hover { background: #f8fafc; }
+        .fullscreen-btn {
+            position: absolute; top: 10px; right: 10px;
+            background: #10b981; color: white; border: none;
+            padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;
+        }
+        .fullscreen-btn:hover { background: #059669; }
+        .diagram-wrapper { position: relative; }
+        .fullscreen-overlay {
+            display: none; position: fixed; top: 0; left: 0;
+            width: 100vw; height: 100vh; background: white;
+            z-index: 9999; overflow: auto; padding: 40px;
+        }
+        .fullscreen-overlay.active { display: block; }
+        .close-fullscreen {
+            position: fixed; top: 20px; right: 20px;
+            background: #ef4444; color: white; border: none;
+            padding: 10px 20px; border-radius: 8px; cursor: pointer; z-index: 10000;
+        }
+        pre code { border-radius: 8px; }
+        .highlight-green { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="fixed top-0 left-0 w-64 h-screen bg-white shadow-lg overflow-y-auto z-50">
+        <div class="p-6">
+            <h1 class="text-xl font-bold text-gray-800 mb-2">PARSE Stage</h1>
+            <p class="text-sm text-gray-500 mb-6">实现方案 v1.0</p>
+            <div class="space-y-1">
+                <a href="#principle" class="nav-link block px-3 py-2 text-sm text-gray-700 rounded">1. 设计原则</a>
+                <a href="#architecture" class="nav-link block px-3 py-2 text-sm text-gray-700 rounded">2. 整体架构</a>
+                <a href="#excel" class="nav-link block px-3 py-2 text-sm text-gray-700 rounded">3. Excel 解析</a>
+                <a href="#pdf" class="nav-link block px-3 py-2 text-sm text-gray-700 rounded">4. PDF 解析</a>
+                <a href="#template" class="nav-link block px-3 py-2 text-sm text-gray-700 rounded">5. 模板分析</a>
+                <a href="#image" class="nav-link block px-3 py-2 text-sm text-gray-700 rounded">6. 图片处理</a>
+                <a href="#mapping" class="nav-link block px-3 py-2 text-sm text-gray-700 rounded">7. 字段映射</a>
+                <a href="#summary" class="nav-link block px-3 py-2 text-sm text-gray-700 rounded">8. 技术选型总结</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="ml-64 p-8">
+        <div class="max-w-5xl mx-auto">
+
+            <!-- Header -->
+            <header class="highlight-green text-white rounded-2xl p-8 mb-12">
+                <h1 class="text-4xl font-bold mb-4">PARSE Stage 实现方案</h1>
+                <p class="text-xl opacity-90 mb-4">Excel / PDF / Template / Image 解析与字段映射</p>
+                <div class="flex gap-4 text-sm">
+                    <span class="bg-white/20 px-3 py-1 rounded-full">Version 1.0</span>
+                    <span class="bg-white/20 px-3 py-1 rounded-full">2025-01-13</span>
+                </div>
+            </header>
+
+            <!-- Section 1: Principle -->
+            <section id="principle" class="section mb-16">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">1. 设计原则</h2>
+
+                <div class="card p-6 mb-8">
+                    <h3 class="text-xl font-semibold mb-4">核心洞察：解析是确定性操作</h3>
+                    <div class="bg-green-50 border-l-4 border-green-500 p-4 mb-6">
+                        <p class="text-green-800 font-medium">Excel/PDF 解析 = 纯技术操作，不需要 LLM</p>
+                        <ul class="text-green-700 text-sm mt-2 space-y-1">
+                            <li>- 读取Excel单元格 -> 确定性操作</li>
+                            <li>- 提取PDF文本/表格 -> 确定性操作</li>
+                            <li>- 这些应该是 Workflow 的独立节点，直接执行</li>
+                        </ul>
+                    </div>
+                    <div class="bg-amber-50 border-l-4 border-amber-500 p-4">
+                        <p class="text-amber-800 font-medium">真正需要 LLM 的是：</p>
+                        <ul class="text-amber-700 text-sm mt-2 space-y-1">
+                            <li>- 字段语义识别 ("Purchase Price" vs "Acquisition Cost")</li>
+                            <li>- 数据冲突处理</li>
+                            <li>- 内容生成</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="card p-4">
+                        <div class="flex items-center mb-2">
+                            <span class="badge badge-no-llm mr-2">无需 LLM</span>
+                            <span class="font-semibold">确定性操作</span>
+                        </div>
+                        <ul class="text-sm text-gray-600 space-y-1">
+                            <li>- Excel 单元格读取</li>
+                            <li>- PDF 文本提取</li>
+                            <li>- 图片验证/压缩</li>
+                            <li>- PDF 渲染</li>
+                        </ul>
+                    </div>
+                    <div class="card p-4">
+                        <div class="flex items-center mb-2">
+                            <span class="badge badge-need-llm mr-2">需要 LLM</span>
+                            <span class="font-semibold">智能操作</span>
+                        </div>
+                        <ul class="text-sm text-gray-600 space-y-1">
+                            <li>- 模板设计分析</li>
+                            <li>- 字段语义映射</li>
+                            <li>- 冲突/缺失处理</li>
+                            <li>- 内容生成</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 2: Architecture -->
+            <section id="architecture" class="section mb-16">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">2. PARSE Stage 整体架构</h2>
+
+                <div class="diagram-wrapper">
+                    <div class="diagram-container">
+                        <h4 class="text-lg font-semibold mb-4 text-center">PARSE Stage 详细架构</h4>
+                        <button class="fullscreen-btn" onclick="openFullscreen('diagram1')">全屏查看</button>
+                        <div class="mermaid" id="diagram1">
+flowchart TB
+    subgraph Input["输入文件"]
+        I1["Excel<br/>财务模型"]
+        I2["PDF<br/>物业报告"]
+        I3["Template<br/>设计模板"]
+        I4["Images<br/>图片资产"]
+    end
+
+    subgraph Parallel["并行执行层 (无需 LLM)"]
+        EP["Excel Parser<br/><small>xlsx</small>"]
+        PP["PDF Parser<br/><small>RAGFlow/Marker</small>"]
+        TA["Template Analyzer<br/><small>Vision API</small>"]
+        IV["Image Validator<br/><small>Sharp</small>"]
+    end
+
+    subgraph Raw["Raw Data Layer"]
+        RE["RawExcelData<br/>原始单元格+位置"]
+        RP["RawPDFData<br/>原始文本+表格"]
+        TS["TemplateSpec<br/>颜色/字体/布局"]
+        IM["ImageMetadata<br/>尺寸/S3 URL"]
+    end
+
+    subgraph Mapper["Field Mapper (需要 LLM)"]
+        FM["Claude API<br/>字段语义映射<br/>冲突检测<br/>缺失处理"]
+    end
+
+    subgraph Output["输出"]
+        ED["ExtractedData<br/>结构化数据"]
+        CT["Citations<br/>数据溯源"]
+        HQ["HITL Questions<br/>需用户确认"]
+    end
+
+    I1 --> EP --> RE
+    I2 --> PP --> RP
+    I3 --> TA --> TS
+    I4 --> IV --> IM
+
+    RE --> FM
+    RP --> FM
+    FM --> ED & CT & HQ
+
+    style Parallel fill:#dcfce7,stroke:#22c55e
+    style Mapper fill:#fef3c7,stroke:#f59e0b
+    style TA fill:#fef3c7,stroke:#f59e0b
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card p-6 mt-8">
+                    <h3 class="text-xl font-semibold mb-4">节点说明</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>节点</th>
+                                <th>类型</th>
+                                <th>需要 LLM</th>
+                                <th>技术方案</th>
+                                <th>输出</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Excel Parser</td>
+                                <td>Workflow Node</td>
+                                <td><span class="badge badge-no-llm">否</span></td>
+                                <td>xlsx / openpyxl</td>
+                                <td>RawExcelData</td>
+                            </tr>
+                            <tr>
+                                <td>PDF Parser</td>
+                                <td>Workflow Node</td>
+                                <td><span class="badge badge-no-llm">否</span></td>
+                                <td>RAGFlow / Marker</td>
+                                <td>RawPDFData</td>
+                            </tr>
+                            <tr>
+                                <td>Template Analyzer</td>
+                                <td>Workflow Node</td>
+                                <td><span class="badge badge-need-llm">是 (Vision)</span></td>
+                                <td>Claude Vision API</td>
+                                <td>TemplateSpec</td>
+                            </tr>
+                            <tr>
+                                <td>Image Validator</td>
+                                <td>Workflow Node</td>
+                                <td><span class="badge badge-no-llm">否</span></td>
+                                <td>Sharp</td>
+                                <td>ImageMetadata</td>
+                            </tr>
+                            <tr>
+                                <td>Field Mapper</td>
+                                <td>Workflow Node</td>
+                                <td><span class="badge badge-need-llm">是</span></td>
+                                <td>Claude API</td>
+                                <td>ExtractedData</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Section 3: Excel -->
+            <section id="excel" class="section mb-16">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">3. Excel 解析方案</h2>
+
+                <div class="card p-6 mb-8">
+                    <h3 class="text-xl font-semibold mb-4">技术选型对比</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>方案</th>
+                                <th>语言</th>
+                                <th>优点</th>
+                                <th>缺点</th>
+                                <th>推荐</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>xlsx / SheetJS</strong></td>
+                                <td>Node.js</td>
+                                <td>最流行，社区大，API简单</td>
+                                <td>大文件性能一般</td>
+                                <td><span class="badge badge-recommended">推荐</span></td>
+                            </tr>
+                            <tr>
+                                <td>ExcelJS</td>
+                                <td>Node.js</td>
+                                <td>流式读取，大文件友好</td>
+                                <td>API相对复杂</td>
+                                <td>大文件场景</td>
+                            </tr>
+                            <tr>
+                                <td>openpyxl</td>
+                                <td>Python</td>
+                                <td>Python标准，稳定</td>
+                                <td>需要Python环境</td>
+                                <td>Python项目</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="bg-green-50 border border-green-200 rounded-lg p-6 mb-8">
+                    <h4 class="font-semibold text-green-800 mb-2">推荐方案: xlsx (Node.js)</h4>
+                    <ul class="text-green-700 text-sm space-y-1">
+                        <li>- 最流行的 Node.js Excel 库</li>
+                        <li>- API 简单直观</li>
+                        <li>- 支持读取公式计算结果</li>
+                        <li>- 可以获取单元格位置信息 (用于 Citation)</li>
+                    </ul>
+                    <div class="mt-4 bg-gray-800 text-green-400 px-4 py-2 rounded text-sm font-mono">
+                        npm install xlsx
+                    </div>
+                </div>
+
+                <div class="diagram-wrapper">
+                    <div class="diagram-container">
+                        <h4 class="text-lg font-semibold mb-4 text-center">Excel 解析流程</h4>
+                        <button class="fullscreen-btn" onclick="openFullscreen('diagram2')">全屏查看</button>
+                        <div class="mermaid" id="diagram2">
+flowchart LR
+    subgraph Input
+        F["Excel File<br/>.xlsx"]
+    end
+
+    subgraph Process["解析过程"]
+        L["加载 Workbook"]
+        S["遍历 Sheets"]
+        C["提取 Cells<br/>+ 位置信息"]
+        T["识别 Tables"]
+    end
+
+    subgraph Output
+        R["RawExcelData"]
+        D["sheets[]<br/>cells[]<br/>tables[]"]
+    end
+
+    F --> L --> S --> C --> T --> R
+    R --> D
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card p-6">
+                    <h3 class="text-xl font-semibold mb-4">CRE Excel 常见字段</h3>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-blue-800 mb-2">Summary Sheet</h4>
+                            <ul class="text-sm text-blue-700 space-y-1">
+                                <li>- Purchase Price</li>
+                                <li>- NOI</li>
+                                <li>- Cap Rate</li>
+                                <li>- Price Per SF</li>
+                                <li>- Occupancy Rate</li>
+                            </ul>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-purple-800 mb-2">Rent Roll Sheet</h4>
+                            <ul class="text-sm text-purple-700 space-y-1">
+                                <li>- Unit # / Suite</li>
+                                <li>- Tenant Name</li>
+                                <li>- Square Feet</li>
+                                <li>- Monthly Rent</li>
+                                <li>- Lease Term</li>
+                            </ul>
+                        </div>
+                        <div class="bg-amber-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-amber-800 mb-2">Operating Statement</h4>
+                            <ul class="text-sm text-amber-700 space-y-1">
+                                <li>- Gross Potential Rent</li>
+                                <li>- Vacancy Loss</li>
+                                <li>- EGI</li>
+                                <li>- Operating Expenses</li>
+                                <li>- NOI</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 4: PDF -->
+            <section id="pdf" class="section mb-16">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">4. PDF 解析方案</h2>
+
+                <div class="card p-6 mb-8">
+                    <h3 class="text-xl font-semibold mb-4">技术选型对比</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>方案</th>
+                                <th>类型</th>
+                                <th>表格提取</th>
+                                <th>复杂布局</th>
+                                <th>成本</th>
+                                <th>推荐</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>RAGFlow DeepDoc</strong></td>
+                                <td>开源</td>
+                                <td>好</td>
+                                <td>好</td>
+                                <td>免费</td>
+                                <td><span class="badge badge-recommended">推荐</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Marker</strong></td>
+                                <td>开源</td>
+                                <td>好</td>
+                                <td>好</td>
+                                <td>免费</td>
+                                <td><span class="badge badge-recommended">备选</span></td>
+                            </tr>
+                            <tr>
+                                <td>pdfplumber</td>
+                                <td>开源</td>
+                                <td>最好</td>
+                                <td>一般</td>
+                                <td>免费</td>
+                                <td>简单场景</td>
+                            </tr>
+                            <tr>
+                                <td>Unstructured.io</td>
+                                <td>开源/商业</td>
+                                <td>好</td>
+                                <td>好</td>
+                                <td>免费/付费</td>
+                                <td>多格式需求</td>
+                            </tr>
+                            <tr>
+                                <td>LlamaParse</td>
+                                <td>商业API</td>
+                                <td>好</td>
+                                <td>最好</td>
+                                <td>付费</td>
+                                <td>预算充足</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="grid grid-cols-2 gap-6 mb-8">
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-6">
+                        <h4 class="font-semibold text-green-800 mb-2">方案A: RAGFlow DeepDoc</h4>
+                        <p class="text-green-700 text-sm mb-3">你之前已经研究过，熟悉度高</p>
+                        <ul class="text-green-700 text-sm space-y-1">
+                            <li>- 专门为文档解析设计</li>
+                            <li>- 表格识别效果好</li>
+                            <li>- 开源免费</li>
+                            <li>- 支持多种文档格式</li>
+                        </ul>
+                    </div>
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                        <h4 class="font-semibold text-blue-800 mb-2">方案B: Marker</h4>
+                        <p class="text-blue-700 text-sm mb-3">轻量备选方案</p>
+                        <ul class="text-blue-700 text-sm space-y-1">
+                            <li>- PDF -> Markdown，格式保留好</li>
+                            <li>- 表格转换效果好</li>
+                            <li>- 纯 Python，易集成</li>
+                            <li>- 轻量级</li>
+                        </ul>
+                        <div class="mt-4 bg-gray-800 text-blue-400 px-4 py-2 rounded text-sm font-mono">
+                            pip install marker-pdf
+                        </div>
+                    </div>
+                </div>
+
+                <div class="diagram-wrapper">
+                    <div class="diagram-container">
+                        <h4 class="text-lg font-semibold mb-4 text-center">PDF 解析流程</h4>
+                        <button class="fullscreen-btn" onclick="openFullscreen('diagram3')">全屏查看</button>
+                        <div class="mermaid" id="diagram3">
+flowchart LR
+    subgraph Input
+        F["PDF File"]
+    end
+
+    subgraph Process["解析过程"]
+        L["加载 PDF"]
+        P["遍历 Pages"]
+        T["提取文本块<br/>+ 位置信息"]
+        TB["提取表格"]
+    end
+
+    subgraph Output
+        R["RawPDFData"]
+        D["pages[]<br/>text_blocks[]<br/>tables[]"]
+    end
+
+    F --> L --> P --> T --> TB --> R
+    R --> D
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 5: Template -->
+            <section id="template" class="section mb-16">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">5. 模板分析方案</h2>
+
+                <div class="card p-6 mb-8">
+                    <div class="flex items-center mb-4">
+                        <span class="badge badge-need-llm mr-2">需要 LLM</span>
+                        <h3 class="text-xl font-semibold">使用 Claude Vision API</h3>
+                    </div>
+                    <p class="text-gray-600 mb-4">模板分析需要理解视觉设计，需要 Vision API。</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h4 class="font-semibold mb-2">需要识别的元素</h4>
+                            <ul class="text-sm text-gray-600 space-y-1">
+                                <li>- 颜色方案 (主色、次色、点缀色)</li>
+                                <li>- 字体样式 (标题、正文、数字)</li>
+                                <li>- 布局结构 (页眉、页脚、边距)</li>
+                                <li>- 组件样式 (表格、卡片)</li>
+                            </ul>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h4 class="font-semibold mb-2">输出 TemplateSpec</h4>
+                            <ul class="text-sm text-gray-600 space-y-1">
+                                <li>- page: 尺寸、方向、边距</li>
+                                <li>- colors: 主色、次色、背景等</li>
+                                <li>- fonts: 各级字体规范</li>
+                                <li>- components: 组件样式</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="diagram-wrapper">
+                    <div class="diagram-container">
+                        <h4 class="text-lg font-semibold mb-4 text-center">模板分析流程</h4>
+                        <button class="fullscreen-btn" onclick="openFullscreen('diagram4')">全屏查看</button>
+                        <div class="mermaid" id="diagram4">
+flowchart LR
+    subgraph Input
+        F["Template PDF"]
+    end
+
+    subgraph Process["处理过程"]
+        I["PDF 转图片<br/>(每页)"]
+        S["选择关键页<br/>封面/内容/表格"]
+        V["Vision API<br/>分析设计"]
+    end
+
+    subgraph Output
+        T["TemplateSpec"]
+        D["colors{}<br/>fonts{}<br/>components{}"]
+    end
+
+    F --> I --> S --> V --> T
+    T --> D
+
+    style V fill:#fef3c7,stroke:#f59e0b
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 6: Image -->
+            <section id="image" class="section mb-16">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">6. 图片处理方案</h2>
+
+                <div class="card p-6 mb-8">
+                    <div class="flex items-center mb-4">
+                        <span class="badge badge-no-llm mr-2">无需 LLM</span>
+                        <h3 class="text-xl font-semibold">图片不需要解析，只需验证和存储</h3>
+                    </div>
+
+                    <div class="diagram-wrapper">
+                        <div class="diagram-container">
+                            <button class="fullscreen-btn" onclick="openFullscreen('diagram5')">全屏查看</button>
+                            <div class="mermaid" id="diagram5">
+flowchart LR
+    U["用户上传<br/>图片"] --> V["格式验证<br/>大小检查"]
+    V --> R["尺寸处理<br/>压缩优化"]
+    R --> S["S3 上传<br/>生成 URL"]
+    S --> M["ImageMetadata"]
+
+    style V fill:#dcfce7,stroke:#22c55e
+    style R fill:#dcfce7,stroke:#22c55e
+    style S fill:#dcfce7,stroke:#22c55e
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-6">
+                    <div class="card p-6">
+                        <h4 class="font-semibold mb-3">支持的图片类型</h4>
+                        <ul class="space-y-2 text-sm">
+                            <li><span class="badge bg-blue-100 text-blue-800 mr-2">exterior</span>物业外观照片</li>
+                            <li><span class="badge bg-green-100 text-green-800 mr-2">interior</span>物业内部照片</li>
+                            <li><span class="badge bg-purple-100 text-purple-800 mr-2">floor_plan</span>平面图</li>
+                            <li><span class="badge bg-amber-100 text-amber-800 mr-2">map_base</span>地图底图</li>
+                            <li><span class="badge bg-red-100 text-red-800 mr-2">logo</span>Logo</li>
+                        </ul>
+                    </div>
+                    <div class="card p-6">
+                        <h4 class="font-semibold mb-3">验证规则</h4>
+                        <ul class="space-y-2 text-sm text-gray-600">
+                            <li><strong>格式:</strong> JPG, PNG, WebP</li>
+                            <li><strong>最大尺寸:</strong> 10MB</li>
+                            <li><strong>最小分辨率:</strong> 800x600</li>
+                            <li><strong>最大分辨率:</strong> 4000x4000 (超过则压缩)</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card p-6 mt-6">
+                    <h4 class="font-semibold mb-3">地图底图特殊处理</h4>
+                    <p class="text-gray-600 text-sm mb-4">地图底图在 GENERATE Stage 进行标注，添加物业位置、距离圆圈等。</p>
+                    <div class="diagram-wrapper">
+                        <div class="diagram-container">
+                            <div class="mermaid">
+flowchart LR
+    U["用户上传<br/>地图底图"] --> I["INPUT Stage<br/>验证+存储"]
+    I --> G["GENERATE Stage<br/>Map Annotator"]
+    G --> O["标注后的<br/>地图图片"]
+
+    style G fill:#f3e8ff,stroke:#9333ea
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 7: Mapping -->
+            <section id="mapping" class="section mb-16">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">7. 字段映射方案</h2>
+
+                <div class="card p-6 mb-8">
+                    <div class="flex items-center mb-4">
+                        <span class="badge badge-need-llm mr-2">需要 LLM</span>
+                        <h3 class="text-xl font-semibold">将原始数据映射到结构化字段</h3>
+                    </div>
+
+                    <div class="diagram-wrapper">
+                        <div class="diagram-container">
+                            <h4 class="text-lg font-semibold mb-4 text-center">字段映射流程</h4>
+                            <button class="fullscreen-btn" onclick="openFullscreen('diagram6')">全屏查看</button>
+                            <div class="mermaid" id="diagram6">
+flowchart TB
+    subgraph Input["输入: 原始数据"]
+        RE["RawExcelData<br/>单元格 + 位置"]
+        RP["RawPDFData<br/>文本 + 表格"]
+    end
+
+    subgraph LLM["Claude API 任务"]
+        T1["1. 字段语义识别<br/>'Purchase Price' -> purchasePrice"]
+        T2["2. 数据冲突检测<br/>Excel vs PDF 不一致"]
+        T3["3. 缺失数据处理<br/>capRate 为空 -> 可计算"]
+    end
+
+    subgraph Output["输出"]
+        ED["ExtractedData<br/>结构化字段"]
+        CT["Citations<br/>来源追踪"]
+        CF["Conflicts<br/>冲突列表"]
+        HQ["HITL Questions<br/>需用户确认"]
+    end
+
+    RE --> LLM
+    RP --> LLM
+    LLM --> ED & CT & CF & HQ
+
+    style LLM fill:#fef3c7,stroke:#f59e0b
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card p-6 mb-8">
+                    <h4 class="font-semibold mb-4">字段映射示例</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>原始数据 (Excel)</th>
+                                <th>映射结果</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>"Purchase Price"</td>
+                                <td><code>purchasePrice</code></td>
+                            </tr>
+                            <tr>
+                                <td>"Acquisition Cost"</td>
+                                <td><code>purchasePrice</code></td>
+                            </tr>
+                            <tr>
+                                <td>"Net Operating Income"</td>
+                                <td><code>noi</code></td>
+                            </tr>
+                            <tr>
+                                <td>"Cap Rate" / "Capitalization Rate"</td>
+                                <td><code>capRate</code></td>
+                            </tr>
+                            <tr>
+                                <td>"GBA" / "NRA" / "Rentable SF"</td>
+                                <td><code>buildingSF</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="grid grid-cols-2 gap-6">
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <h4 class="font-semibold text-red-800 mb-2">冲突处理示例</h4>
+                        <div class="text-sm text-red-700 space-y-2">
+                            <p><strong>Excel:</strong> buildingSF = 50,000</p>
+                            <p><strong>PDF:</strong> buildingSF = 48,500</p>
+                            <p class="mt-2 font-medium">-> 触发 HITL，询问用户</p>
+                        </div>
+                    </div>
+                    <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                        <h4 class="font-semibold text-amber-800 mb-2">缺失处理示例</h4>
+                        <div class="text-sm text-amber-700 space-y-2">
+                            <p><strong>发现:</strong> capRate 为空</p>
+                            <p><strong>但有:</strong> noi, purchasePrice</p>
+                            <p class="mt-2 font-medium">-> 建议计算: noi / purchasePrice</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 8: Summary -->
+            <section id="summary" class="section mb-16">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">8. 技术选型总结</h2>
+
+                <div class="card p-6 mb-8">
+                    <h3 class="text-xl font-semibold mb-4">最终推荐方案</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>组件</th>
+                                <th>推荐方案</th>
+                                <th>备选方案</th>
+                                <th>需要 LLM</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Excel 解析</td>
+                                <td><span class="badge badge-recommended">xlsx (Node.js)</span></td>
+                                <td>openpyxl (Python)</td>
+                                <td><span class="badge badge-no-llm">否</span></td>
+                            </tr>
+                            <tr>
+                                <td>PDF 解析</td>
+                                <td><span class="badge badge-recommended">RAGFlow DeepDoc</span></td>
+                                <td>Marker</td>
+                                <td><span class="badge badge-no-llm">否</span></td>
+                            </tr>
+                            <tr>
+                                <td>模板分析</td>
+                                <td><span class="badge badge-recommended">Claude Vision API</span></td>
+                                <td>-</td>
+                                <td><span class="badge badge-need-llm">是</span></td>
+                            </tr>
+                            <tr>
+                                <td>图片处理</td>
+                                <td><span class="badge badge-recommended">Sharp</span></td>
+                                <td>-</td>
+                                <td><span class="badge badge-no-llm">否</span></td>
+                            </tr>
+                            <tr>
+                                <td>字段映射</td>
+                                <td><span class="badge badge-recommended">Claude API</span></td>
+                                <td>-</td>
+                                <td><span class="badge badge-need-llm">是</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card p-6">
+                    <h3 class="text-xl font-semibold mb-4">LLM 调用点 (成本控制)</h3>
+                    <div class="grid grid-cols-2 gap-6">
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-green-800 mb-2">无需 LLM</h4>
+                            <ul class="text-sm text-green-700 space-y-1">
+                                <li>- Excel Parser (xlsx 直接解析)</li>
+                                <li>- PDF Parser (RAGFlow 直接解析)</li>
+                                <li>- Image Validator (Sharp 直接处理)</li>
+                                <li>- PDF Renderer (Puppeteer 直接渲染)</li>
+                            </ul>
+                        </div>
+                        <div class="bg-amber-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-amber-800 mb-2">需要 LLM</h4>
+                            <ul class="text-sm text-amber-700 space-y-1">
+                                <li>- Template Analyzer (~2,000 tokens)</li>
+                                <li>- Field Mapper (~5,000 tokens)</li>
+                                <li>- Content Generator (~20,000 tokens)</li>
+                                <li><strong>总计: ~27,000 tokens/次</strong></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Footer -->
+            <footer class="border-t pt-8 mt-16 text-center text-gray-500">
+                <p>OM Generator PARSE Stage 实现方案 v1.0</p>
+                <p class="text-sm mt-2">2025-01-13</p>
+            </footer>
+        </div>
+    </main>
+
+    <!-- Fullscreen Overlay -->
+    <div id="fullscreenOverlay" class="fullscreen-overlay">
+        <button class="close-fullscreen" onclick="closeFullscreen()">关闭</button>
+        <div id="fullscreenContent"></div>
+    </div>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+        });
+
+        function openFullscreen(diagramId) {
+            const diagram = document.getElementById(diagramId);
+            const overlay = document.getElementById('fullscreenOverlay');
+            const content = document.getElementById('fullscreenContent');
+            content.innerHTML = diagram.outerHTML;
+            overlay.classList.add('active');
+            mermaid.init(undefined, content.querySelector('.mermaid'));
+        }
+
+        function closeFullscreen() {
+            document.getElementById('fullscreenOverlay').classList.remove('active');
+        }
+
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeFullscreen(); });
+
+        hljs.highlightAll();
+
+        const sections = document.querySelectorAll('.section');
+        const navLinks = document.querySelectorAll('.nav-link');
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                if (scrollY >= section.offsetTop - 100) current = section.getAttribute('id');
+            });
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) link.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>
