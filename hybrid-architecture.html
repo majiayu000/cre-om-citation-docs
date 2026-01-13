@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OM Generator 混合架构设计</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        .section { scroll-margin-top: 80px; }
+        .nav-link { transition: all 0.2s; }
+        .nav-link:hover { background-color: rgba(59, 130, 246, 0.1); }
+        .nav-link.active { background-color: rgba(59, 130, 246, 0.2); border-left: 3px solid #3b82f6; }
+        .diagram-container { background: #f8fafc; border-radius: 8px; padding: 20px; margin: 20px 0; }
+        .mermaid { display: flex; justify-content: center; }
+        .code-block { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; overflow-x: auto; }
+        .highlight-box { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 12px; font-weight: 500; }
+        .badge-workflow { background: #dbeafe; color: #1e40af; }
+        .badge-toolcall { background: #dcfce7; color: #166534; }
+        .badge-hitl { background: #fef3c7; color: #92400e; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #e2e8f0; padding: 12px; text-align: left; }
+        th { background: #f1f5f9; font-weight: 600; }
+        tr:hover { background: #f8fafc; }
+        .fullscreen-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .fullscreen-btn:hover { background: #2563eb; }
+        .diagram-wrapper { position: relative; }
+        .fullscreen-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: white;
+            z-index: 9999;
+            overflow: auto;
+            padding: 40px;
+        }
+        .fullscreen-overlay.active { display: block; }
+        .close-fullscreen {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 10000;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="fixed top-0 left-0 w-64 h-screen bg-white shadow-lg overflow-y-auto z-50">
+        <div class="p-6">
+            <h1 class="text-xl font-bold text-gray-800 mb-2">OM Generator</h1>
+            <p class="text-sm text-gray-500 mb-6">混合架构设计 v2.0</p>
+
+            <div class="space-y-1">
+                <a href="#overview" class="nav-link block px-3 py-2 text-sm text-gray-700 rounded">1. 架构概述</a>
+                <a href="#philosophy" class="nav-link block px-3 py-2 text-sm text-gray-700 rounded">2. 设计理念</a>
+                <a href="#dual-layer" class="nav-link block px-3 py-2 text-sm text-gray-700 rounded">3. 双层架构</a>
+                <a href="#workflow" class="nav-link block px-3 py-2 text-sm text-gray-700 rounded">4. Workflow Layer</a>
+                <a href="#toolcall" class="nav-link block px-3 py-2 text-sm text-gray-700 rounded">5. Tool Call Layer</a>
+                <a href="#state" class="nav-link block px-3 py-2 text-sm text-gray-700 rounded">6. 状态管理</a>
+                <a href="#hitl" class="nav-link block px-3 py-2 text-sm text-gray-700 rounded">7. Human-in-the-Loop</a>
+                <a href="#dataflow" class="nav-link block px-3 py-2 text-sm text-gray-700 rounded">8. 数据流转</a>
+                <a href="#error" class="nav-link block px-3 py-2 text-sm text-gray-700 rounded">9. 错误处理</a>
+                <a href="#tech" class="nav-link block px-3 py-2 text-sm text-gray-700 rounded">10. 技术选型</a>
+                <a href="#deployment" class="nav-link block px-3 py-2 text-sm text-gray-700 rounded">11. 部署架构</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="ml-64 p-8">
+        <div class="max-w-5xl mx-auto">
+
+            <!-- Header -->
+            <header class="highlight-box text-white rounded-2xl p-8 mb-12">
+                <h1 class="text-4xl font-bold mb-4">OM Generator 混合架构</h1>
+                <p class="text-xl opacity-90 mb-4">Workflow + Tool Call 双层设计</p>
+                <div class="flex gap-4 text-sm">
+                    <span class="bg-white/20 px-3 py-1 rounded-full">Version 2.0</span>
+                    <span class="bg-white/20 px-3 py-1 rounded-full">2025-01-13</span>
+                </div>
+            </header>
+
+            <!-- Section 1: Overview -->
+            <section id="overview" class="section mb-16">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">1. 架构概述</h2>
+
+                <div class="card p-6 mb-8">
+                    <h3 class="text-xl font-semibold mb-4">核心问题：如何平衡可预测性与智能灵活性？</h3>
+                    <div class="grid grid-cols-2 gap-6">
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-blue-800 mb-2">需要可预测性</h4>
+                            <ul class="text-sm text-blue-700 space-y-1">
+                                <li>- 用户需要看到明确进度</li>
+                                <li>- 预估完成时间</li>
+                                <li>- 出错时知道在哪个环节</li>
+                            </ul>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-green-800 mb-2">需要智能处理</h4>
+                            <ul class="text-sm text-green-700 space-y-1">
+                                <li>- 数据格式多样</li>
+                                <li>- 可能有数据冲突</li>
+                                <li>- 需要智能判断</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="diagram-wrapper">
+                    <div class="diagram-container">
+                        <h4 class="text-lg font-semibold mb-4 text-center">混合架构总览</h4>
+                        <button class="fullscreen-btn" onclick="openFullscreen('diagram1')">全屏查看</button>
+                        <div class="mermaid" id="diagram1">
+flowchart TB
+    subgraph WL["Workflow Layer (宏观控制)"]
+        direction LR
+        INPUT["INPUT<br/>Stage"]
+        PARSE["PARSE<br/>Stage"]
+        ENRICH["ENRICH<br/>Stage"]
+        GENERATE["GENERATE<br/>Stage"]
+        RENDER["RENDER<br/>Stage"]
+        INPUT --> PARSE --> ENRICH --> GENERATE --> RENDER
+    end
+
+    subgraph TCL["Tool Call Layer (微观智能)"]
+        direction LR
+        LLM["Claude LLM"]
+        T1["ParseExcel"]
+        T2["ParsePDF"]
+        T3["AnalyzeTemplate"]
+        T4["SearchWeb"]
+        T5["AnnotateMap"]
+        T6["RenderPDF"]
+        T7["AskUser"]
+        LLM --> T1 & T2 & T3 & T4 & T5 & T6 & T7
+    end
+
+    PARSE -.-> LLM
+    ENRICH -.-> LLM
+    GENERATE -.-> LLM
+
+    style WL fill:#dbeafe,stroke:#3b82f6
+    style TCL fill:#dcfce7,stroke:#22c55e
+    style LLM fill:#fef3c7,stroke:#f59e0b
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-4 mt-8">
+                    <div class="card p-4 text-center">
+                        <div class="text-3xl font-bold text-blue-600">5</div>
+                        <div class="text-sm text-gray-600">核心 Stages</div>
+                    </div>
+                    <div class="card p-4 text-center">
+                        <div class="text-3xl font-bold text-green-600">7</div>
+                        <div class="text-sm text-gray-600">智能 Tools</div>
+                    </div>
+                    <div class="card p-4 text-center">
+                        <div class="text-3xl font-bold text-amber-600">4</div>
+                        <div class="text-sm text-gray-600">HITL 类型</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 2: Philosophy -->
+            <section id="philosophy" class="section mb-16">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">2. 设计理念</h2>
+
+                <div class="card p-6 mb-8">
+                    <h3 class="text-xl font-semibold mb-4">借鉴 Claude Code 的设计</h3>
+                    <p class="text-gray-600 mb-4">Claude Code 的核心是 <strong>Single Agent + Multiple Tools</strong>，我们将其适配为分层架构。</p>
+
+                    <div class="diagram-wrapper">
+                        <div class="diagram-container">
+                            <button class="fullscreen-btn" onclick="openFullscreen('diagram2')">全屏查看</button>
+                            <div class="mermaid" id="diagram2">
+flowchart LR
+    subgraph CC["Claude Code 模式"]
+        direction TB
+        Claude["Claude (单一智能体)"]
+        Read["Read Tool"]
+        Write["Write Tool"]
+        Bash["Bash Tool"]
+        Claude --> Read & Write & Bash
+    end
+
+    subgraph OM["OM Generator 适配"]
+        direction TB
+        WF["Workflow (流程骨架)"]
+        PS["Parse Stage<br/>Claude + ParseTools"]
+        ES["Enrich Stage<br/>Claude + SearchTools"]
+        GS["Generate Stage<br/>Claude + GenerateTools"]
+        RS["Render Stage<br/>RenderPDF (无LLM)"]
+        WF --> PS --> ES --> GS --> RS
+    end
+
+    CC -.->|"适配"| OM
+
+    style CC fill:#f3e8ff,stroke:#9333ea
+    style OM fill:#ecfeff,stroke:#06b6d4
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card p-6">
+                    <h3 class="text-xl font-semibold mb-4">智能与确定性的边界</h3>
+                    <div class="grid grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="font-semibold text-green-700 mb-3 flex items-center">
+                                <span class="badge badge-toolcall mr-2">Tool Call</span>
+                                需要智能
+                            </h4>
+                            <ul class="space-y-2 text-sm">
+                                <li class="flex items-start">
+                                    <span class="text-green-500 mr-2">-</span>
+                                    识别Excel字段 ("Purchase Price" vs "Acquisition Cost")
+                                </li>
+                                <li class="flex items-start">
+                                    <span class="text-green-500 mr-2">-</span>
+                                    处理数据冲突
+                                </li>
+                                <li class="flex items-start">
+                                    <span class="text-green-500 mr-2">-</span>
+                                    判断数据质量
+                                </li>
+                                <li class="flex items-start">
+                                    <span class="text-green-500 mr-2">-</span>
+                                    生成内容文案
+                                </li>
+                                <li class="flex items-start">
+                                    <span class="text-green-500 mr-2">-</span>
+                                    决定是否触发HITL
+                                </li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-blue-700 mb-3 flex items-center">
+                                <span class="badge badge-workflow mr-2">Workflow</span>
+                                确定性操作
+                            </h4>
+                            <ul class="space-y-2 text-sm">
+                                <li class="flex items-start">
+                                    <span class="text-blue-500 mr-2">-</span>
+                                    Stage间的流转顺序
+                                </li>
+                                <li class="flex items-start">
+                                    <span class="text-blue-500 mr-2">-</span>
+                                    文件上传/下载
+                                </li>
+                                <li class="flex items-start">
+                                    <span class="text-blue-500 mr-2">-</span>
+                                    PDF渲染流程
+                                </li>
+                                <li class="flex items-start">
+                                    <span class="text-blue-500 mr-2">-</span>
+                                    状态更新和进度计算
+                                </li>
+                                <li class="flex items-start">
+                                    <span class="text-blue-500 mr-2">-</span>
+                                    基于配置的分支
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 3: Dual Layer -->
+            <section id="dual-layer" class="section mb-16">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">3. 双层架构详解</h2>
+
+                <div class="diagram-wrapper">
+                    <div class="diagram-container">
+                        <h4 class="text-lg font-semibold mb-4 text-center">完整架构图</h4>
+                        <button class="fullscreen-btn" onclick="openFullscreen('diagram3')">全屏查看</button>
+                        <div class="mermaid" id="diagram3">
+flowchart TB
+    subgraph FE["Frontend"]
+        Upload["上传文件"]
+        Template["选择模板"]
+        Config["配置选项"]
+        Progress["查看进度"]
+        Download["下载PDF"]
+    end
+
+    subgraph WL["WORKFLOW LAYER"]
+        SM["State Manager<br/>OMState"]
+        INPUT["INPUT Stage"]
+        PARSE["PARSE Stage"]
+        ENRICH["ENRICH Stage"]
+        GENERATE["GENERATE Stage"]
+        RENDER["RENDER Stage"]
+
+        SM --> INPUT --> PARSE --> ENRICH --> GENERATE --> RENDER
+    end
+
+    subgraph TCL["TOOL CALL LAYER"]
+        LLM["Claude LLM<br/>(Opus 4.5)"]
+
+        subgraph DT["Data Tools"]
+            PE["ParseExcel"]
+            PP["ParsePDF"]
+            AT["AnalyzeTemplate"]
+        end
+
+        subgraph ET["Enrich Tools"]
+            ST["SearchTransit"]
+            SA["SearchAmenities"]
+            SS["SearchSponsor"]
+        end
+
+        subgraph OT["Output Tools"]
+            RP["RenderPDF"]
+            AM["AnnotateMap"]
+            GT["GenerateTable"]
+        end
+
+        LLM --> DT & ET & OT
+    end
+
+    subgraph EXT["External Services"]
+        S3["S3"]
+        Redis["Redis"]
+        PG["PostgreSQL"]
+        GM["Google Maps"]
+        CA["Claude API"]
+    end
+
+    FE <-->|"REST/WebSocket"| WL
+    PARSE -.-> LLM
+    ENRICH -.-> LLM
+    GENERATE -.-> LLM
+    TCL --> EXT
+
+    style WL fill:#dbeafe,stroke:#3b82f6
+    style TCL fill:#dcfce7,stroke:#22c55e
+    style FE fill:#fef3c7,stroke:#f59e0b
+    style EXT fill:#f3e8ff,stroke:#9333ea
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card p-6 mt-8">
+                    <h3 class="text-xl font-semibold mb-4">层间交互模式</h3>
+                    <div class="diagram-wrapper">
+                        <div class="diagram-container">
+                            <button class="fullscreen-btn" onclick="openFullscreen('diagram4')">全屏查看</button>
+                            <div class="mermaid" id="diagram4">
+sequenceDiagram
+    participant WF as Workflow Layer
+    participant TC as Tool Call Layer
+    participant LLM as Claude LLM
+    participant Tool as Tools
+    participant User as User
+
+    WF->>TC: executeParse(files)
+    TC->>LLM: System Prompt + Files Info
+
+    loop Tool Calling
+        LLM->>Tool: ParseExcel(file)
+        Tool-->>LLM: Extracted Data
+        LLM->>Tool: ParsePDF(file)
+        Tool-->>LLM: Extracted Data
+    end
+
+    Note over LLM: 发现数据冲突
+    LLM->>Tool: AskUser(question)
+    Tool->>WF: Pause for HITL
+    WF->>User: 显示问题
+    User-->>WF: 用户决定
+    WF->>TC: Resume with decision
+    TC->>LLM: Continue with decision
+
+    LLM-->>TC: Final Result
+    TC-->>WF: ExtractedData + Citations
+    WF->>WF: Update State, Next Stage
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 4: Workflow Layer -->
+            <section id="workflow" class="section mb-16">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">4. Workflow Layer 设计</h2>
+
+                <div class="card p-6 mb-8">
+                    <h3 class="text-xl font-semibold mb-4">5个核心 Stage</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Stage</th>
+                                <th>职责</th>
+                                <th>需要LLM</th>
+                                <th>进度</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="badge badge-workflow">INPUT</span></td>
+                                <td>接收用户输入，验证文件，初始化状态</td>
+                                <td>否</td>
+                                <td>0% - 10%</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge badge-workflow">PARSE</span></td>
+                                <td>解析所有输入文件，提取结构化数据</td>
+                                <td>是</td>
+                                <td>10% - 35%</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge badge-workflow">ENRICH</span></td>
+                                <td>搜索补充信息 (可选)</td>
+                                <td>是</td>
+                                <td>35% - 50%</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge badge-workflow">GENERATE</span></td>
+                                <td>生成OM各Section内容</td>
+                                <td>是</td>
+                                <td>50% - 85%</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge badge-workflow">RENDER</span></td>
+                                <td>将内容渲染为PDF</td>
+                                <td>否</td>
+                                <td>85% - 100%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="diagram-wrapper">
+                    <div class="diagram-container">
+                        <h4 class="text-lg font-semibold mb-4 text-center">状态流转图</h4>
+                        <button class="fullscreen-btn" onclick="openFullscreen('diagram5')">全屏查看</button>
+                        <div class="mermaid" id="diagram5">
+stateDiagram-v2
+    [*] --> IDLE
+    IDLE --> INPUT: 用户点击生成
+    INPUT --> PARSE: 验证成功
+    INPUT --> ERROR: 验证失败
+    PARSE --> ENRICH: 解析成功
+    PARSE --> PAUSED: 需要用户确认
+    PAUSED --> PARSE: 用户响应
+    PARSE --> ERROR: 解析失败
+    ENRICH --> GENERATE: 增强完成
+    ENRICH --> GENERATE: 跳过(未开启)
+    GENERATE --> RENDER: 生成完成
+    GENERATE --> PAUSED: 需要用户确认
+    RENDER --> COMPLETE: 渲染成功
+    RENDER --> ERROR: 渲染失败
+    COMPLETE --> [*]
+    ERROR --> IDLE: 用户重试
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card p-6 mt-8">
+                    <h3 class="text-xl font-semibold mb-4">进度分配详情</h3>
+                    <div class="diagram-wrapper">
+                        <div class="diagram-container">
+                            <button class="fullscreen-btn" onclick="openFullscreen('diagram6')">全屏查看</button>
+                            <div class="mermaid" id="diagram6">
+gantt
+    title 进度分配
+    dateFormat X
+    axisFormat %s%%
+
+    section INPUT
+    文件验证    :0, 10
+
+    section PARSE
+    模板分析    :10, 15
+    Excel解析   :15, 25
+    PDF解析     :25, 35
+
+    section ENRICH
+    Transit搜索  :35, 40
+    Amenities搜索:40, 45
+    Sponsor搜索  :45, 50
+
+    section GENERATE
+    Cover        :50, 52
+    TOC          :52, 54
+    Exec Summary :54, 60
+    Property     :60, 66
+    Location     :66, 72
+    Financial    :72, 78
+    Tenant       :78, 81
+    Sponsor      :81, 84
+    Appendix     :84, 85
+
+    section RENDER
+    组件渲染    :85, 92
+    PDF生成     :92, 98
+    文件保存    :98, 100
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 5: Tool Call Layer -->
+            <section id="toolcall" class="section mb-16">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">5. Tool Call Layer 设计</h2>
+
+                <div class="card p-6 mb-8">
+                    <h3 class="text-xl font-semibold mb-4">Tool 分类</h3>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-blue-800 mb-3">数据解析类</h4>
+                            <ul class="space-y-2 text-sm">
+                                <li class="flex items-center"><span class="badge badge-toolcall mr-2">Tool</span>ParseExcel</li>
+                                <li class="flex items-center"><span class="badge badge-toolcall mr-2">Tool</span>ParsePDF</li>
+                                <li class="flex items-center"><span class="badge badge-toolcall mr-2">Tool</span>AnalyzeTemplate</li>
+                            </ul>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-green-800 mb-3">数据增强类</h4>
+                            <ul class="space-y-2 text-sm">
+                                <li class="flex items-center"><span class="badge badge-toolcall mr-2">Tool</span>SearchTransit</li>
+                                <li class="flex items-center"><span class="badge badge-toolcall mr-2">Tool</span>SearchAmenities</li>
+                                <li class="flex items-center"><span class="badge badge-toolcall mr-2">Tool</span>SearchSponsor</li>
+                            </ul>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-purple-800 mb-3">输出生成类</h4>
+                            <ul class="space-y-2 text-sm">
+                                <li class="flex items-center"><span class="badge badge-toolcall mr-2">Tool</span>AnnotateMap</li>
+                                <li class="flex items-center"><span class="badge badge-toolcall mr-2">Tool</span>GenerateTable</li>
+                                <li class="flex items-center"><span class="badge badge-toolcall mr-2">Tool</span>RenderPDF</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="diagram-wrapper">
+                    <div class="diagram-container">
+                        <h4 class="text-lg font-semibold mb-4 text-center">Parse Stage 的 Tool Call 执行流程</h4>
+                        <button class="fullscreen-btn" onclick="openFullscreen('diagram7')">全屏查看</button>
+                        <div class="mermaid" id="diagram7">
+flowchart TB
+    subgraph Input["Stage 输入"]
+        F1["Excel: Financials.xlsx"]
+        F2["PDF: Property_Report.pdf"]
+        F3["PDF: Template.pdf"]
+    end
+
+    subgraph LLM["Claude LLM 思考"]
+        T1["1. 先分析模板，了解需要提取哪些字段"]
+        T2["2. 解析Excel，提取财务数据"]
+        T3["3. 发现Cap Rate为空，需要决策"]
+        T4["4. 解析PDF，提取补充信息"]
+        T5["5. 合并所有数据，输出"]
+
+        T1 --> T2 --> T3 --> T4 --> T5
+    end
+
+    subgraph Tools["Tool 调用"]
+        AT["AnalyzeTemplate"]
+        PE["ParseExcel"]
+        AU["AskUser"]
+        PP["ParsePDF"]
+    end
+
+    subgraph Output["Stage 输出"]
+        TS["TemplateSpec"]
+        ED["ExtractedData"]
+        CT["Citations[]"]
+    end
+
+    F3 --> T1
+    T1 -->|"调用"| AT
+    AT -->|"返回"| T2
+
+    F1 --> T2
+    T2 -->|"调用"| PE
+    PE -->|"Cap Rate为空"| T3
+
+    T3 -->|"调用"| AU
+    AU -->|"用户选择计算"| T4
+
+    F2 --> T4
+    T4 -->|"调用"| PP
+    PP --> T5
+
+    T5 --> TS & ED & CT
+
+    style LLM fill:#fef3c7,stroke:#f59e0b
+    style Tools fill:#dcfce7,stroke:#22c55e
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card p-6 mt-8">
+                    <h3 class="text-xl font-semibold mb-4">Tool 定义示例: ParseExcel</h3>
+                    <div class="code-block">
+                        <pre><code>{
+  name: "ParseExcel",
+  description: "解析Excel文件，提取财务数据和表格",
+
+  input: {
+    filePath: string,      // Excel文件路径
+    hints?: string         // 可选的解析提示
+  },
+
+  output: {
+    success: boolean,
+    data: {
+      financials: {
+        purchasePrice: { value, formatted, citation },
+        noi: { value, formatted, citation },
+        capRate: { value, formatted, citation },
+        // ...
+      },
+      rentRoll: TableData,
+      operatingStatement: TableData,
+      proForma: TableData
+    },
+    citations: Citation[],
+    warnings: string[],
+    suggestions: string[]
+  }
+}</code></pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 6: State Management -->
+            <section id="state" class="section mb-16">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">6. 状态管理系统</h2>
+
+                <div class="card p-6 mb-8">
+                    <h3 class="text-xl font-semibold mb-4">状态存储分层</h3>
+                    <div class="diagram-wrapper">
+                        <div class="diagram-container">
+                            <button class="fullscreen-btn" onclick="openFullscreen('diagram8')">全屏查看</button>
+                            <div class="mermaid" id="diagram8">
+flowchart TB
+    subgraph L1["Layer 1: 内存 (运行时)"]
+        M1["当前执行状态"]
+        M2["Tool Call 上下文"]
+        M3["临时计算结果"]
+    end
+
+    subgraph L2["Layer 2: Redis (热数据)"]
+        R1["进度信息"]
+        R2["HITL 问题"]
+        R3["状态快照"]
+        TTL["TTL: 24小时"]
+    end
+
+    subgraph L3["Layer 3: PostgreSQL (冷数据)"]
+        P1["完整项目状态"]
+        P2["用户决策记录"]
+        P3["Citation 数据"]
+        P4["调试日志"]
+    end
+
+    subgraph L4["Layer 4: S3 (文件)"]
+        S1["上传的原始文件"]
+        S2["生成的PDF"]
+        S3["中间产物"]
+    end
+
+    L1 -->|"实时同步"| L2
+    L2 -->|"异步持久化"| L3
+    L1 & L3 -->|"文件引用"| L4
+
+    style L1 fill:#fef3c7,stroke:#f59e0b
+    style L2 fill:#fee2e2,stroke:#ef4444
+    style L3 fill:#dbeafe,stroke:#3b82f6
+    style L4 fill:#dcfce7,stroke:#22c55e
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card p-6">
+                    <h3 class="text-xl font-semibold mb-4">OMState 完整定义</h3>
+                    <div class="code-block">
+                        <pre><code>interface OMState {
+  // 项目信息
+  projectId: string;
+  projectName: string;
+
+  // 执行状态
+  status: 'idle' | 'running' | 'paused' | 'complete' | 'error';
+  progress: number;        // 0-100
+  currentStage: StageName;
+  currentStep: string;
+
+  // 用户输入
+  input: {
+    files: UploadedFile[];
+    templateId?: string;
+    config: ProjectConfig;
+    assets: Asset[];
+  };
+
+  // 各Stage输出
+  templateSpec?: TemplateSpec;
+  extractedData?: ExtractedData;
+  enrichedData?: EnrichedData;
+  generatedContent?: GeneratedContent;
+  renderedPdf?: RenderedPDF;
+
+  // Citation 系统
+  citations: Citation[];
+
+  // Human-in-the-Loop
+  hitl: {
+    isPaused: boolean;
+    pendingQuestion?: HITLQuestion;
+    decisions: UserDecision[];
+  };
+
+  // 错误追踪
+  errors: StageError[];
+  warnings: Warning[];
+}</code></pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 7: HITL -->
+            <section id="hitl" class="section mb-16">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">7. Human-in-the-Loop 设计</h2>
+
+                <div class="card p-6 mb-8">
+                    <h3 class="text-xl font-semibold mb-4">HITL 触发场景</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-red-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-red-800 mb-2">
+                                <span class="badge badge-hitl mr-2">data_conflict</span>
+                                数据冲突
+                            </h4>
+                            <p class="text-sm text-red-700">Excel显示50,000 SF，PDF显示48,500 SF</p>
+                        </div>
+                        <div class="bg-amber-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-amber-800 mb-2">
+                                <span class="badge badge-hitl mr-2">missing_data</span>
+                                数据缺失
+                            </h4>
+                            <p class="text-sm text-amber-700">Excel中Cap Rate为空</p>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-purple-800 mb-2">
+                                <span class="badge badge-hitl mr-2">design_choice</span>
+                                设计选择
+                            </h4>
+                            <p class="text-sm text-purple-700">模板分析出两种表格样式</p>
+                        </div>
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-blue-800 mb-2">
+                                <span class="badge badge-hitl mr-2">confirmation</span>
+                                确认
+                            </h4>
+                            <p class="text-sm text-blue-700">即将覆盖已有的生成结果</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="diagram-wrapper">
+                    <div class="diagram-container">
+                        <h4 class="text-lg font-semibold mb-4 text-center">HITL 交互流程</h4>
+                        <button class="fullscreen-btn" onclick="openFullscreen('diagram9')">全屏查看</button>
+                        <div class="mermaid" id="diagram9">
+sequenceDiagram
+    participant LLM as Claude LLM
+    participant TC as Tool Call Layer
+    participant WF as Workflow
+    participant FE as Frontend
+    participant User as User
+
+    LLM->>LLM: 发现Cap Rate为空
+    LLM->>TC: 调用 AskUser Tool
+    TC->>WF: 构造 HITLQuestion
+    WF->>WF: status = 'paused'
+    WF->>FE: WebSocket: HITL事件
+
+    FE->>User: 显示问题弹窗
+    Note over FE,User: "Cap Rate数据缺失<br/>1. 自动计算 (5.6%)<br/>2. 留空<br/>3. 手动输入"
+
+    User->>FE: 选择"自动计算"
+    FE->>WF: POST /hitl/:questionId
+    WF->>WF: status = 'running'
+    WF->>TC: Resume with decision
+    TC->>LLM: 继续执行
+
+    LLM->>LLM: 使用计算值5.6%继续
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card p-6 mt-8">
+                    <h3 class="text-xl font-semibold mb-4">HITL 界面示例</h3>
+                    <div class="bg-white border-2 border-amber-300 rounded-lg p-6 max-w-md mx-auto shadow-lg">
+                        <div class="flex items-center mb-4">
+                            <span class="text-2xl mr-2">--</span>
+                            <span class="font-semibold text-amber-800">需要您的确认</span>
+                        </div>
+                        <h4 class="font-bold text-lg mb-2">Cap Rate 数据缺失</h4>
+                        <p class="text-gray-600 text-sm mb-4">
+                            Excel文件中未找到Cap Rate数据。我们可以根据NOI和Purchase Price自动计算。
+                        </p>
+                        <div class="space-y-2 mb-4">
+                            <label class="flex items-center p-3 bg-green-50 rounded-lg cursor-pointer border-2 border-green-200">
+                                <input type="radio" name="option" checked class="mr-3">
+                                <div>
+                                    <div class="font-semibold">自动计算</div>
+                                    <div class="text-sm text-gray-600">890,000 / 15,900,000 = 5.6%</div>
+                                </div>
+                            </label>
+                            <label class="flex items-center p-3 bg-gray-50 rounded-lg cursor-pointer">
+                                <input type="radio" name="option" class="mr-3">
+                                <div>
+                                    <div class="font-semibold">留空</div>
+                                    <div class="text-sm text-gray-600">稍后手动填写</div>
+                                </div>
+                            </label>
+                            <label class="flex items-center p-3 bg-gray-50 rounded-lg cursor-pointer">
+                                <input type="radio" name="option" class="mr-3">
+                                <div>
+                                    <div class="font-semibold">手动输入</div>
+                                    <input type="text" placeholder="输入Cap Rate" class="mt-1 w-full border rounded px-2 py-1 text-sm">
+                                </div>
+                            </label>
+                        </div>
+                        <button class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold">确认</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 8: Data Flow -->
+            <section id="dataflow" class="section mb-16">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">8. 数据流转</h2>
+
+                <div class="diagram-wrapper">
+                    <div class="diagram-container">
+                        <h4 class="text-lg font-semibold mb-4 text-center">完整数据流</h4>
+                        <button class="fullscreen-btn" onclick="openFullscreen('diagram10')">全屏查看</button>
+                        <div class="mermaid" id="diagram10">
+flowchart TB
+    subgraph Input["用户输入"]
+        I1["Excel (财务模型)"]
+        I2["PDF (物业报告)"]
+        I3["模板"]
+        I4["图片资产"]
+        I5["配置"]
+    end
+
+    subgraph Parse["PARSE Stage"]
+        AT["AnalyzeTemplate"]
+        PE["ParseExcel"]
+        PP["ParsePDF"]
+
+        AT --> TS["TemplateSpec"]
+        PE --> ED1["ExtractedData.financials"]
+        PP --> ED2["ExtractedData.documents"]
+        PE & PP --> C1["Citations[]"]
+    end
+
+    subgraph Enrich["ENRICH Stage (可选)"]
+        ST["SearchTransit"]
+        SA["SearchAmenities"]
+        SS["SearchSponsor"]
+
+        ST --> EN1["EnrichedData.transit"]
+        SA --> EN2["EnrichedData.amenities"]
+        SS --> EN3["EnrichedData.sponsor"]
+        ST & SA & SS --> C2["Citations[]"]
+    end
+
+    subgraph Generate["GENERATE Stage"]
+        direction TB
+        S1["Cover"]
+        S2["TOC"]
+        S3["Executive Summary"]
+        S4["Property Overview"]
+        S5["Location Overview"]
+        S6["Financial Analysis"]
+        S7["Tenant Overview"]
+        S8["Sponsor Overview"]
+        S9["Appendix"]
+
+        S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8 --> S9
+        S5 -.-> AM["AnnotateMap"]
+        S6 -.-> GT["GenerateTable"]
+    end
+
+    subgraph Render["RENDER Stage"]
+        RC["React Components"]
+        HTML["HTML + Tailwind"]
+        PUP["Puppeteer"]
+        PDF["PDF Output"]
+
+        RC --> HTML --> PUP --> PDF
+    end
+
+    I1 & I2 & I3 --> Parse
+    I4 --> Generate
+    I5 --> Parse & Enrich
+
+    TS & ED1 & ED2 --> Enrich
+    TS & ED1 & ED2 & EN1 & EN2 & EN3 --> Generate
+
+    S9 --> Render
+    TS --> Render
+
+    style Input fill:#fef3c7,stroke:#f59e0b
+    style Parse fill:#dbeafe,stroke:#3b82f6
+    style Enrich fill:#dcfce7,stroke:#22c55e
+    style Generate fill:#f3e8ff,stroke:#9333ea
+    style Render fill:#fee2e2,stroke:#ef4444
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card p-6 mt-8">
+                    <h3 class="text-xl font-semibold mb-4">Citation 数据流</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-start">
+                            <div class="w-24 font-semibold text-blue-600">Parse</div>
+                            <div class="flex-1">
+                                <code class="bg-gray-100 px-2 py-1 rounded text-sm">
+                                    { field: "purchasePrice", citation: { source: "excel", location: "Summary!D12" } }
+                                </code>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="w-24 font-semibold text-purple-600">Generate</div>
+                            <div class="flex-1">
+                                <code class="bg-gray-100 px-2 py-1 rounded text-sm">
+                                    "The property is offered at $15,900,000 [cite:cite_001]"
+                                </code>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="w-24 font-semibold text-red-600">Render</div>
+                            <div class="flex-1 bg-gray-50 p-3 rounded">
+                                <p class="text-sm">The property is offered at $15,900,000<sup>1</sup></p>
+                                <hr class="my-2">
+                                <p class="text-xs text-gray-500"><sup>1</sup> Excel: Financials.xlsx > Summary > D12</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 9: Error Handling -->
+            <section id="error" class="section mb-16">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">9. 错误处理与恢复</h2>
+
+                <div class="card p-6 mb-8">
+                    <h3 class="text-xl font-semibold mb-4">错误分类与处理策略</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Level</th>
+                                <th>类型</th>
+                                <th>示例</th>
+                                <th>策略</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="badge bg-green-100 text-green-800">L1</span></td>
+                                <td>可恢复</td>
+                                <td>API超时、临时网络错误</td>
+                                <td>指数退避重试，最多3次</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge bg-yellow-100 text-yellow-800">L2</span></td>
+                                <td>可跳过</td>
+                                <td>Deep Search部分失败、PDF部分页面失败</td>
+                                <td>记录警告，跳过该部分</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge bg-orange-100 text-orange-800">L3</span></td>
+                                <td>需用户介入</td>
+                                <td>关键数据缺失、数据严重冲突</td>
+                                <td>暂停，触发HITL</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge bg-red-100 text-red-800">L4</span></td>
+                                <td>致命</td>
+                                <td>模板损坏、Excel完全无法解析</td>
+                                <td>终止，保存已有进度</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="diagram-wrapper">
+                    <div class="diagram-container">
+                        <h4 class="text-lg font-semibold mb-4 text-center">错误处理流程</h4>
+                        <button class="fullscreen-btn" onclick="openFullscreen('diagram11')">全屏查看</button>
+                        <div class="mermaid" id="diagram11">
+flowchart TB
+    Error["发生错误"]
+    Classify["分类错误"]
+
+    Error --> Classify
+
+    Classify -->|"L1: 可恢复"| Retry["重试 (指数退避)"]
+    Classify -->|"L2: 可跳过"| Skip["跳过，记录警告"]
+    Classify -->|"L3: 需用户"| HITL["触发HITL"]
+    Classify -->|"L4: 致命"| Abort["终止执行"]
+
+    Retry -->|"成功"| Continue["继续执行"]
+    Retry -->|"3次失败"| Escalate["升级为L2/L3"]
+
+    Skip --> Continue
+
+    HITL -->|"用户响应"| Continue
+    HITL -->|"超时"| UseDefault["使用默认值"]
+    UseDefault --> Continue
+
+    Abort --> SaveState["保存当前状态"]
+    SaveState --> NotifyUser["通知用户"]
+
+    style Retry fill:#dcfce7,stroke:#22c55e
+    style Skip fill:#fef3c7,stroke:#f59e0b
+    style HITL fill:#dbeafe,stroke:#3b82f6
+    style Abort fill:#fee2e2,stroke:#ef4444
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 10: Tech Stack -->
+            <section id="tech" class="section mb-16">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">10. 技术选型</h2>
+
+                <div class="grid grid-cols-2 gap-6">
+                    <div class="card p-6">
+                        <h3 class="text-lg font-semibold mb-4 text-blue-700">Workflow Layer</h3>
+                        <ul class="space-y-2 text-sm">
+                            <li><strong>框架:</strong> LangGraph (Python) / 自建状态机 (TS)</li>
+                            <li><strong>状态存储:</strong> Redis + PostgreSQL</li>
+                            <li><strong>消息队列:</strong> Bull (Node.js) / Celery (Python)</li>
+                        </ul>
+                    </div>
+                    <div class="card p-6">
+                        <h3 class="text-lg font-semibold mb-4 text-green-700">Tool Call Layer</h3>
+                        <ul class="space-y-2 text-sm">
+                            <li><strong>LLM:</strong> Claude API (Opus 4.5 / Sonnet)</li>
+                            <li><strong>Tool Use:</strong> Anthropic Tool Use API</li>
+                        </ul>
+                    </div>
+                    <div class="card p-6">
+                        <h3 class="text-lg font-semibold mb-4 text-purple-700">数据解析</h3>
+                        <ul class="space-y-2 text-sm">
+                            <li><strong>Excel:</strong> xlsx (Node.js) / openpyxl (Python)</li>
+                            <li><strong>PDF:</strong> pdf-parse / pdfplumber</li>
+                            <li><strong>图像:</strong> Sharp (Node.js)</li>
+                        </ul>
+                    </div>
+                    <div class="card p-6">
+                        <h3 class="text-lg font-semibold mb-4 text-red-700">内容渲染</h3>
+                        <ul class="space-y-2 text-sm">
+                            <li><strong>UI框架:</strong> React 18</li>
+                            <li><strong>样式:</strong> Tailwind CSS + CSS Paged Media</li>
+                            <li><strong>PDF生成:</strong> Puppeteer</li>
+                        </ul>
+                    </div>
+                    <div class="card p-6">
+                        <h3 class="text-lg font-semibold mb-4 text-amber-700">前端</h3>
+                        <ul class="space-y-2 text-sm">
+                            <li><strong>框架:</strong> Next.js 14 (App Router)</li>
+                            <li><strong>状态:</strong> Zustand</li>
+                            <li><strong>实时:</strong> WebSocket</li>
+                            <li><strong>UI:</strong> Shadcn/ui</li>
+                        </ul>
+                    </div>
+                    <div class="card p-6">
+                        <h3 class="text-lg font-semibold mb-4 text-cyan-700">外部服务</h3>
+                        <ul class="space-y-2 text-sm">
+                            <li><strong>地图:</strong> Google Maps API</li>
+                            <li><strong>存储:</strong> AWS S3</li>
+                            <li><strong>缓存:</strong> Redis</li>
+                            <li><strong>数据库:</strong> PostgreSQL</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 11: Deployment -->
+            <section id="deployment" class="section mb-16">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">11. 部署架构</h2>
+
+                <div class="diagram-wrapper">
+                    <div class="diagram-container">
+                        <h4 class="text-lg font-semibold mb-4 text-center">部署架构图</h4>
+                        <button class="fullscreen-btn" onclick="openFullscreen('diagram12')">全屏查看</button>
+                        <div class="mermaid" id="diagram12">
+flowchart TB
+    Internet["Internet"]
+
+    subgraph CDN["CloudFlare"]
+        WAF["CDN + WAF"]
+    end
+
+    subgraph Frontend["Frontend (Vercel)"]
+        Next["Next.js"]
+    end
+
+    subgraph API["API Server (AWS ECS)"]
+        Node["Node.js / Python"]
+    end
+
+    subgraph Workers["Worker Nodes (AWS ECS)"]
+        W1["Worker #1<br/>Workflow Executor"]
+        W2["Worker #2<br/>Workflow Executor"]
+        W3["Worker #N<br/>..."]
+    end
+
+    subgraph Storage["Storage Layer"]
+        Redis["Redis<br/>(ElastiCache)"]
+        PG["PostgreSQL<br/>(RDS)"]
+        S3["S3<br/>(文件存储)"]
+    end
+
+    subgraph External["External APIs"]
+        Claude["Claude API"]
+        GMaps["Google Maps API"]
+    end
+
+    Internet --> CDN --> Frontend & API
+    Frontend <-->|"REST/WS"| API
+    API --> Workers
+    Workers --> Storage
+    Workers --> External
+
+    style CDN fill:#fef3c7,stroke:#f59e0b
+    style Frontend fill:#dbeafe,stroke:#3b82f6
+    style API fill:#dcfce7,stroke:#22c55e
+    style Workers fill:#f3e8ff,stroke:#9333ea
+    style Storage fill:#fee2e2,stroke:#ef4444
+    style External fill:#e0e7ff,stroke:#6366f1
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card p-6 mt-8">
+                    <h3 class="text-xl font-semibold mb-4">Worker 扩展策略</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>队列长度</th>
+                                <th>Worker数量</th>
+                                <th>说明</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>0-5</td>
+                                <td>2</td>
+                                <td>基础配置，保持最小实例</td>
+                            </tr>
+                            <tr>
+                                <td>6-20</td>
+                                <td>4</td>
+                                <td>常规负载</td>
+                            </tr>
+                            <tr>
+                                <td>21-50</td>
+                                <td>8</td>
+                                <td>高峰期</td>
+                            </tr>
+                            <tr>
+                                <td>&gt;50</td>
+                                <td>16</td>
+                                <td>最大扩展</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p class="text-sm text-gray-600 mt-4">
+                        每个Worker配置: 2 vCPU, 4 GB Memory, 并发任务: 1 (PDF生成是CPU密集型)
+                    </p>
+                </div>
+            </section>
+
+            <!-- Footer -->
+            <footer class="border-t pt-8 mt-16 text-center text-gray-500">
+                <p>OM Generator 混合架构设计文档 v2.0</p>
+                <p class="text-sm mt-2">2025-01-13</p>
+            </footer>
+        </div>
+    </main>
+
+    <!-- Fullscreen Overlay -->
+    <div id="fullscreenOverlay" class="fullscreen-overlay">
+        <button class="close-fullscreen" onclick="closeFullscreen()">关闭</button>
+        <div id="fullscreenContent"></div>
+    </div>
+
+    <script>
+        // Initialize Mermaid
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            },
+            sequence: {
+                useMaxWidth: true
+            },
+            gantt: {
+                useMaxWidth: true
+            }
+        });
+
+        // Fullscreen functionality
+        function openFullscreen(diagramId) {
+            const diagram = document.getElementById(diagramId);
+            const overlay = document.getElementById('fullscreenOverlay');
+            const content = document.getElementById('fullscreenContent');
+
+            content.innerHTML = diagram.outerHTML;
+            overlay.classList.add('active');
+
+            // Re-render mermaid in fullscreen
+            mermaid.init(undefined, content.querySelector('.mermaid'));
+        }
+
+        function closeFullscreen() {
+            document.getElementById('fullscreenOverlay').classList.remove('active');
+        }
+
+        // Close on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeFullscreen();
+        });
+
+        // Navigation highlighting
+        const sections = document.querySelectorAll('.section');
+        const navLinks = document.querySelectorAll('.nav-link');
+
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (scrollY >= sectionTop - 100) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
