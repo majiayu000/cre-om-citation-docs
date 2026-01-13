@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OM Generator System Architecture</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --primary: #1a365d;
+      --primary-light: #ebf4ff;
+      --secondary: #2b6cb0;
+      --accent: #ed8936;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-600: #4b5563;
+      --gray-800: #1f2937;
+      --green-100: #dcfce7;
+      --green-700: #15803d;
+      --yellow-100: #fef9c3;
+      --yellow-700: #a16207;
+      --red-100: #fee2e2;
+      --red-700: #b91c1c;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      color: var(--gray-800);
+      background: var(--gray-50);
+    }
+
+    .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+
+    header {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      padding: 3rem 2rem;
+      margin-bottom: 2rem;
+      border-radius: 12px;
+    }
+
+    header h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+    header p { opacity: 0.9; font-size: 1.1rem; }
+
+    .meta {
+      display: flex;
+      gap: 2rem;
+      margin-top: 1rem;
+      font-size: 0.9rem;
+      opacity: 0.8;
+    }
+
+    nav {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    nav h2 { font-size: 1.2rem; margin-bottom: 1rem; color: var(--gray-600); }
+
+    nav ul {
+      list-style: none;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 0.5rem;
+    }
+
+    nav a {
+      color: var(--secondary);
+      text-decoration: none;
+      padding: 0.5rem;
+      display: block;
+      border-radius: 6px;
+      transition: background 0.2s;
+    }
+
+    nav a:hover { background: var(--primary-light); }
+
+    section {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      color: var(--primary);
+      font-size: 1.8rem;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--primary-light);
+    }
+
+    h3 { font-size: 1.3rem; margin: 1.5rem 0 1rem; color: var(--gray-800); }
+    h4 { font-size: 1.1rem; margin: 1rem 0 0.5rem; color: var(--gray-600); }
+    p { margin-bottom: 1rem; }
+
+    .diagram-container {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      overflow-x: auto;
+      position: relative;
+    }
+
+    .diagram-container .mermaid {
+      display: flex;
+      justify-content: center;
+      min-height: 400px;
+    }
+
+    .diagram-title {
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--gray-600);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .fullscreen-btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+
+    .fullscreen-btn:hover { background: var(--secondary); }
+
+    .diagram-container.fullscreen {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 1000;
+      border-radius: 0;
+      margin: 0;
+      background: white;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .diagram-container.fullscreen .mermaid {
+      flex: 1;
+      overflow: auto;
+      min-height: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+    }
+
+    th, td {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    th { background: var(--gray-100); font-weight: 600; }
+    tr:hover { background: var(--gray-50); }
+
+    code {
+      background: var(--gray-100);
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 0.9em;
+    }
+
+    pre {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 1.5rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 1rem 0;
+    }
+
+    pre code { background: none; padding: 0; color: inherit; }
+
+    .decision-card {
+      background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+      border: 1px solid #bae6fd;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+    }
+
+    .decision-card h4 { color: #0369a1; margin-top: 0; }
+
+    .section-flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin: 1rem 0;
+    }
+
+    .section-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.5rem 1rem;
+      border-radius: 9999px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+
+    .section-badge.required { background: var(--green-100); color: var(--green-700); }
+    .section-badge.optional { background: var(--yellow-100); color: var(--yellow-700); }
+
+    .arrow { color: var(--gray-600); font-size: 1.2rem; }
+
+    .agent-card {
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+
+    .agent-card h5 {
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      font-size: 1rem;
+    }
+
+    .agent-card ul { margin-left: 1.5rem; }
+
+    .layer-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-right: 0.5rem;
+    }
+
+    .layer-input { background: #dbeafe; color: #1e40af; }
+    .layer-parsing { background: #fef3c7; color: #92400e; }
+    .layer-enrichment { background: #d1fae5; color: #065f46; }
+    .layer-generation { background: #e0e7ff; color: #3730a3; }
+    .layer-render { background: #fce7f3; color: #9d174d; }
+    .layer-output { background: #f3e8ff; color: #6b21a8; }
+
+    @media (max-width: 768px) {
+      .container { padding: 1rem; }
+      header { padding: 2rem 1rem; }
+      header h1 { font-size: 1.8rem; }
+      .meta { flex-direction: column; gap: 0.5rem; }
+      nav ul { grid-template-columns: 1fr; }
+      section { padding: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>OM Generator System Architecture</h1>
+      <p>CRE OM Generator - 多Agent系统架构技术规范 (PDF优先)</p>
+      <div class="meta">
+        <span>Version: 1.0.0</span>
+        <span>Last Updated: 2026-01-13</span>
+        <span>Output: PDF (Letter 8.5" x 11")</span>
+      </div>
+    </header>
+
+    <nav>
+      <h2>目录</h2>
+      <ul>
+        <li><a href="#decisions">1. 核心决策</a></li>
+        <li><a href="#architecture">2. 系统架构</a></li>
+        <li><a href="#sections">3. 固定Section结构</a></li>
+        <li><a href="#agents">4. Agent详细设计</a></li>
+        <li><a href="#dataflow">5. 数据流向</a></li>
+        <li><a href="#template">6. 模板系统</a></li>
+        <li><a href="#render">7. PDF渲染引擎</a></li>
+        <li><a href="#map">8. 地图标注系统</a></li>
+        <li><a href="#table">9. 表格样式系统</a></li>
+        <li><a href="#userflow">10. 用户交互流程</a></li>
+      </ul>
+    </nav>
+
+    <!-- Section 1: 核心决策 -->
+    <section id="decisions">
+      <h2>1. 核心决策</h2>
+
+      <div class="decision-card">
+        <h4>已确认的产品决策</h4>
+        <table>
+          <thead>
+            <tr><th>决策点</th><th>选择</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>输出格式</td><td><strong>PDF优先</strong></td><td>Letter尺寸 (8.5" x 11")</td></tr>
+            <tr><td>Section顺序</td><td><strong>固定</strong></td><td>9个标准Section，顺序不可调</td></tr>
+            <tr><td>图片来源</td><td><strong>用户上传</strong></td><td>不做网上搜索图片</td></tr>
+            <tr><td>表格复杂度</td><td><strong>简单</strong></td><td>专注美观布局和主题色</td></tr>
+            <tr><td>地图</td><td><strong>静态+标注</strong></td><td>用户上传底图，系统添加标注</td></tr>
+            <tr><td>Deep Search</td><td><strong>可选</strong></td><td>仅Transit/Amenities/Sponsor</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="diagram-container">
+        <div class="diagram-title">
+          <span>设计原则</span>
+          <button class="fullscreen-btn" onclick="toggleFullscreen(this)">全屏</button>
+        </div>
+        <div class="mermaid">
+graph LR
+    subgraph "设计原则"
+        P1[模板驱动<br/>严格按用户模板风格]
+        P2[Citation优先<br/>每个数据点可追溯]
+        P3[用户可控<br/>关键节点人工干预]
+        P4[PDF美观<br/>专业级商业报告]
+        P5[固定流程<br/>Section顺序固定]
+    end
+    P1 --> P2 --> P3 --> P4 --> P5
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 2: 系统架构 -->
+    <section id="architecture">
+      <h2>2. 系统架构</h2>
+
+      <h3>2.1 分层架构总览</h3>
+      <div class="diagram-container">
+        <div class="diagram-title">
+          <span>六层系统架构</span>
+          <button class="fullscreen-btn" onclick="toggleFullscreen(this)">全屏</button>
+        </div>
+        <div class="mermaid">
+flowchart TB
+    subgraph L1["Layer 1: INPUT 输入层"]
+        T1[Template<br/>模板选择]
+        T2[Data Files<br/>Excel/PDF]
+        T3[Assets<br/>图片/Logo/地图]
+    end
+
+    subgraph L2["Layer 2: PARSING 解析层"]
+        A1[Template Analyzer<br/>模板分析器]
+        A2[Excel Parser<br/>Excel解析器]
+        A3[PDF Parser<br/>PDF解析器]
+    end
+
+    subgraph L3["Layer 3: ENRICHMENT 增强层 可选"]
+        DS[Deep Search Agent<br/>Transit/Amenities/Sponsor]
+    end
+
+    subgraph L4["Layer 4: GENERATION 生成层"]
+        CG[Content Generation Agent<br/>Claude: 按Section生成+Citation]
+    end
+
+    subgraph L5["Layer 5: RENDER 渲染层"]
+        RE[PDF Render Engine<br/>React+Tailwind+Puppeteer]
+        MA[Map Annotator<br/>地图标注]
+    end
+
+    subgraph L6["Layer 6: OUTPUT 输出"]
+        PDF[PDF<br/>8.5x11 Letter]
+    end
+
+    T1 --> A1
+    T2 --> A2
+    T2 --> A3
+    T3 --> RE
+
+    A1 --> CG
+    A2 --> CG
+    A3 --> CG
+    DS -.-> CG
+
+    CG --> RE
+    MA --> RE
+    RE --> PDF
+
+    style L1 fill:#dbeafe
+    style L2 fill:#fef3c7
+    style L3 fill:#d1fae5
+    style L4 fill:#e0e7ff
+    style L5 fill:#fce7f3
+    style L6 fill:#f3e8ff
+        </div>
+      </div>
+
+      <h3>2.2 各层说明</h3>
+      <table>
+        <thead>
+          <tr><th>层级</th><th>名称</th><th>职责</th><th>主要组件</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="layer-badge layer-input">L1</span></td>
+            <td>INPUT</td>
+            <td>接收用户输入</td>
+            <td>模板选择、文件上传、素材上传</td>
+          </tr>
+          <tr>
+            <td><span class="layer-badge layer-parsing">L2</span></td>
+            <td>PARSING</td>
+            <td>解析输入文件</td>
+            <td>Template Analyzer, Excel/PDF Parser</td>
+          </tr>
+          <tr>
+            <td><span class="layer-badge layer-enrichment">L3</span></td>
+            <td>ENRICHMENT</td>
+            <td>数据增强(可选)</td>
+            <td>Deep Search Agent</td>
+          </tr>
+          <tr>
+            <td><span class="layer-badge layer-generation">L4</span></td>
+            <td>GENERATION</td>
+            <td>生成OM内容</td>
+            <td>Content Generation Agent (Claude)</td>
+          </tr>
+          <tr>
+            <td><span class="layer-badge layer-render">L5</span></td>
+            <td>RENDER</td>
+            <td>渲染为PDF</td>
+            <td>PDF Render Engine, Map Annotator</td>
+          </tr>
+          <tr>
+            <td><span class="layer-badge layer-output">L6</span></td>
+            <td>OUTPUT</td>
+            <td>输出最终PDF</td>
+            <td>PDF文件 (Letter尺寸)</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Section 3: 固定Section结构 -->
+    <section id="sections">
+      <h2>3. 固定Section结构</h2>
+
+      <h3>3.1 Section顺序</h3>
+      <div class="section-flow">
+        <span class="section-badge required">1. Cover</span>
+        <span class="arrow">→</span>
+        <span class="section-badge required">2. TOC</span>
+        <span class="arrow">→</span>
+        <span class="section-badge required">3. Executive Summary</span>
+        <span class="arrow">→</span>
+        <span class="section-badge required">4. Property Overview</span>
+        <span class="arrow">→</span>
+        <span class="section-badge required">5. Location Overview</span>
+        <span class="arrow">→</span>
+        <span class="section-badge required">6. Financial Analysis</span>
+        <span class="arrow">→</span>
+        <span class="section-badge required">7. Tenant Overview</span>
+        <span class="arrow">→</span>
+        <span class="section-badge required">8. Sponsor Overview</span>
+        <span class="arrow">→</span>
+        <span class="section-badge optional">9. Appendix (可选)</span>
+      </div>
+
+      <div class="diagram-container">
+        <div class="diagram-title">
+          <span>Section生成流程</span>
+          <button class="fullscreen-btn" onclick="toggleFullscreen(this)">全屏</button>
+        </div>
+        <div class="mermaid">
+flowchart LR
+    subgraph "固定Section顺序"
+        S1[1.Cover<br/>封面<br/>1页]
+        S2[2.TOC<br/>目录<br/>1页]
+        S3[3.Exec Summary<br/>投资亮点<br/>1-2页]
+        S4[4.Property<br/>物业概述<br/>2-4页]
+        S5[5.Location<br/>位置交通<br/>2-3页]
+        S6[6.Financial<br/>财务分析<br/>3-5页]
+        S7[7.Tenant<br/>租户概述<br/>1-2页]
+        S8[8.Sponsor<br/>开发商<br/>1页]
+        S9[9.Appendix<br/>附录<br/>可选]
+    end
+
+    S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8 --> S9
+
+    style S1 fill:#1a365d,color:#fff
+    style S9 fill:#fef3c7
+        </div>
+      </div>
+
+      <h3>3.2 Section详细说明</h3>
+      <table>
+        <thead>
+          <tr><th>#</th><th>Section</th><th>内容</th><th>页数</th><th>必需</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>Cover Page</td><td>封面、物业主图、标题、Broker信息</td><td>1</td><td>是</td></tr>
+          <tr><td>2</td><td>Table of Contents</td><td>自动生成目录和页码</td><td>1</td><td>是</td></tr>
+          <tr><td>3</td><td>Executive Summary</td><td>Investment Highlights, Key Metrics</td><td>1-2</td><td>是</td></tr>
+          <tr><td>4</td><td>Property Overview</td><td>物业描述、规格、图片、Amenities</td><td>2-4</td><td>是</td></tr>
+          <tr><td>5</td><td>Location Overview</td><td>位置描述、交通地图、周边设施地图</td><td>2-3</td><td>是</td></tr>
+          <tr><td>6</td><td>Financial Analysis</td><td>财务摘要、Rent Roll、运营报表、Pro Forma</td><td>3-5</td><td>是</td></tr>
+          <tr><td>7</td><td>Tenant Overview</td><td>租户列表、租约到期时间表、租户占比</td><td>1-2</td><td>是</td></tr>
+          <tr><td>8</td><td>Sponsor Overview</td><td>开发商/业主介绍、Track Record</td><td>1</td><td>是</td></tr>
+          <tr><td>9</td><td>Appendix</td><td>详细财务、法律文件、补充图片</td><td>N</td><td>否</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Section 4: Agent详细设计 -->
+    <section id="agents">
+      <h2>4. Agent详细设计</h2>
+
+      <div class="diagram-container">
+        <div class="diagram-title">
+          <span>Agent协作架构</span>
+          <button class="fullscreen-btn" onclick="toggleFullscreen(this)">全屏</button>
+        </div>
+        <div class="mermaid">
+flowchart TB
+    subgraph "Orchestrator Agent 协调器"
+        ORC[任务分解<br/>Agent调度<br/>状态管理]
+    end
+
+    subgraph "解析层 Agents"
+        TA[Template Analyzer<br/>模板分析]
+        EP[Excel Parser<br/>财务数据提取]
+        PP[PDF Parser<br/>文档解析]
+    end
+
+    subgraph "增强层 Agent"
+        DS[Deep Search Agent<br/>Transit/Amenities/Sponsor]
+    end
+
+    subgraph "生成层 Agent"
+        CG[Content Generator<br/>Claude API<br/>按Section生成]
+    end
+
+    subgraph "渲染层"
+        RE[PDF Render Engine]
+        MA[Map Annotator]
+    end
+
+    ORC --> TA
+    ORC --> EP
+    ORC --> PP
+    ORC -.-> DS
+
+    TA --> CG
+    EP --> CG
+    PP --> CG
+    DS -.-> CG
+
+    CG --> RE
+    MA --> RE
+        </div>
+      </div>
+
+      <h3>4.1 各Agent职责</h3>
+
+      <div class="agent-card">
+        <h5>Orchestrator Agent (协调器)</h5>
+        <ul>
+          <li>接收用户输入，分解任务</li>
+          <li>调度其他Agent执行</li>
+          <li>管理整体状态和进度</li>
+          <li>处理错误和重试</li>
+          <li>合并各Agent输出</li>
+        </ul>
+      </div>
+
+      <div class="agent-card">
+        <h5>Template Analyzer (模板分析器)</h5>
+        <ul>
+          <li>分析用户提供的模板（PDF/现有OM）</li>
+          <li>使用Vision AI提取设计规范</li>
+          <li>输出: Structure, Layout, Style, Components</li>
+        </ul>
+      </div>
+
+      <div class="agent-card">
+        <h5>Excel Parser (Excel解析器)</h5>
+        <ul>
+          <li>解析Excel财务模型 (openpyxl)</li>
+          <li>提取财务数据并绑定Citation位置</li>
+          <li>识别Rent Roll、Operating Statement、Pro Forma</li>
+        </ul>
+      </div>
+
+      <div class="agent-card">
+        <h5>Content Generation Agent (内容生成器)</h5>
+        <ul>
+          <li>基于ExtractedData生成OM内容</li>
+          <li>按固定Section顺序逐个生成</li>
+          <li>同步绑定Citation标记</li>
+          <li>使用Claude API (Opus 4.5)</li>
+        </ul>
+      </div>
+
+      <div class="agent-card">
+        <h5>Deep Search Agent (可选)</h5>
+        <ul>
+          <li>Transit/交通信息搜索</li>
+          <li>Amenities/周边设施搜索</li>
+          <li>Sponsor信息补充</li>
+          <li>注意: 不搜索图片</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Section 5: 数据流向 -->
+    <section id="dataflow">
+      <h2>5. 数据流向</h2>
+
+      <div class="diagram-container">
+        <div class="diagram-title">
+          <span>完整数据流向图</span>
+          <button class="fullscreen-btn" onclick="toggleFullscreen(this)">全屏</button>
+        </div>
+        <div class="mermaid">
+flowchart LR
+    subgraph "用户输入"
+        U1[Template<br/>模板]
+        U2[Excel<br/>财务模型]
+        U3[PDF<br/>文档]
+        U4[Images<br/>图片]
+        U5[Map<br/>地图底图]
+    end
+
+    subgraph "解析处理"
+        P1[Template<br/>Analyzer]
+        P2[Excel<br/>Parser]
+        P3[PDF<br/>Parser]
+    end
+
+    subgraph "数据集成"
+        DI[Data<br/>Integration<br/>+Citation绑定]
+    end
+
+    subgraph "内容生成"
+        CG[Content<br/>Generator<br/>Claude]
+    end
+
+    subgraph "渲染处理"
+        RE[PDF Render<br/>React+Tailwind]
+        MA[Map<br/>Annotator]
+    end
+
+    subgraph "输出"
+        OUT[PDF<br/>8.5x11]
+    end
+
+    U1 --> P1
+    U2 --> P2
+    U3 --> P3
+    U4 --> RE
+    U5 --> MA
+
+    P1 --> DI
+    P2 --> DI
+    P3 --> DI
+
+    DI --> CG
+    CG --> RE
+    MA --> RE
+    RE --> OUT
+        </div>
+      </div>
+
+      <h3>5.1 数据结构流转</h3>
+      <div class="diagram-container">
+        <div class="diagram-title">
+          <span>核心数据结构</span>
+          <button class="fullscreen-btn" onclick="toggleFullscreen(this)">全屏</button>
+        </div>
+        <div class="mermaid">
+classDiagram
+    class OMProject {
+        +string id
+        +string propertyAddress
+        +PropertyType propertyType
+        +Document[] documents
+        +Asset[] assets
+        +OMDocument generatedOM
+    }
+
+    class ExtractedData {
+        +FinancialData financials
+        +PropertyData property
+        +TenantData[] tenants
+        +CitationRef[] citations
+    }
+
+    class TemplateSpec {
+        +PageConfig page
+        +ColorSystem colors
+        +FontSystem fonts
+        +ComponentStyles components
+    }
+
+    class GeneratedContent {
+        +GeneratedSection[] sections
+        +Citation[] citations
+    }
+
+    class OMDocument {
+        +TemplateSpec templateSpec
+        +GeneratedSection[] sections
+        +Citation[] citations
+        +Buffer pdfBuffer
+    }
+
+    OMProject --> ExtractedData
+    OMProject --> TemplateSpec
+    ExtractedData --> GeneratedContent
+    TemplateSpec --> GeneratedContent
+    GeneratedContent --> OMDocument
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 6: 模板系统 -->
+    <section id="template">
+      <h2>6. 模板系统</h2>
+
+      <div class="diagram-container">
+        <div class="diagram-title">
+          <span>模板来源与处理</span>
+          <button class="fullscreen-btn" onclick="toggleFullscreen(this)">全屏</button>
+        </div>
+        <div class="mermaid">
+flowchart TB
+    subgraph "模板来源"
+        T1[用户预制模板库<br/>PropertyType+DealType组合]
+        T2[用户上传现有OM<br/>作为模板]
+        T3[Atlas内置模板<br/>系统预置]
+    end
+
+    subgraph "模板分析"
+        TA[Template Analyzer<br/>Vision AI分析]
+    end
+
+    subgraph "TemplateSpec输出"
+        TS[TemplateSpec<br/>JSON格式]
+        S1[Structure<br/>Section结构]
+        S2[Layout<br/>页面布局]
+        S3[Style<br/>颜色字体]
+        S4[Components<br/>组件样式]
+    end
+
+    T1 --> TA
+    T2 --> TA
+    T3 --> TA
+
+    TA --> TS
+    TS --> S1
+    TS --> S2
+    TS --> S3
+    TS --> S4
+        </div>
+      </div>
+
+      <h3>6.1 模板处理规则</h3>
+      <table>
+        <thead>
+          <tr><th>模板来源</th><th>Style处理</th><th>说明</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>用户预制模板</td>
+            <td><strong>严格按照</strong>用户模板风格</td>
+            <td>或帮助优化后严格执行</td>
+          </tr>
+          <tr>
+            <td>上传现有OM</td>
+            <td><strong>严格按照</strong>上传OM风格</td>
+            <td>Vision AI提取设计规范</td>
+          </tr>
+          <tr>
+            <td>Atlas内置模板</td>
+            <td>AI<strong>微调</strong>主题色/字体</td>
+            <td>根据物业特色调整</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Section 7: PDF渲染引擎 -->
+    <section id="render">
+      <h2>7. PDF渲染引擎</h2>
+
+      <div class="diagram-container">
+        <div class="diagram-title">
+          <span>PDF渲染流程</span>
+          <button class="fullscreen-btn" onclick="toggleFullscreen(this)">全屏</button>
+        </div>
+        <div class="mermaid">
+flowchart TB
+    subgraph "输入"
+        I1[TemplateSpec<br/>模板规范]
+        I2[GeneratedContent<br/>生成内容]
+        I3[Assets<br/>图片素材]
+    end
+
+    subgraph "渲染流程"
+        R1[加载TemplateSpec]
+        R2[选择React组件<br/>按Section]
+        R3[注入内容数据]
+        R4[应用CSS<br/>Tailwind+Paged Media]
+        R5[生成HTML]
+        R6[Live Preview<br/>用户可编辑]
+        R7[Puppeteer渲染]
+    end
+
+    subgraph "输出"
+        OUT[PDF Buffer<br/>8.5x11 Letter]
+    end
+
+    I1 --> R1
+    I2 --> R3
+    I3 --> R3
+
+    R1 --> R2 --> R3 --> R4 --> R5 --> R6 --> R7 --> OUT
+
+    style R6 fill:#fef3c7
+        </div>
+      </div>
+
+      <h3>7.1 CSS Paged Media</h3>
+      <pre><code>@page {
+  size: 8.5in 11in;  /* Letter */
+  margin: 0.75in;
+}
+
+/* 封面页无页眉页脚 */
+@page cover {
+  margin: 0;
+  @top-center { content: none; }
+  @bottom-center { content: none; }
+}
+
+/* Section分页 */
+.section {
+  page-break-before: always;
+}
+
+/* 避免表格跨页断裂 */
+.table-container {
+  page-break-inside: avoid;
+}</code></pre>
+    </section>
+
+    <!-- Section 8: 地图标注系统 -->
+    <section id="map">
+      <h2>8. 地图标注系统</h2>
+
+      <div class="diagram-container">
+        <div class="diagram-title">
+          <span>地图标注流程</span>
+          <button class="fullscreen-btn" onclick="toggleFullscreen(this)">全屏</button>
+        </div>
+        <div class="mermaid">
+flowchart LR
+    subgraph "输入"
+        M1[地图底图<br/>用户上传]
+        M2[物业位置<br/>坐标/相对位置]
+        M3[POI数据<br/>标注点列表]
+        M4[主题色<br/>跟随模板]
+    end
+
+    subgraph "Map Annotator"
+        MA1[加载底图]
+        MA2[绘制物业标记<br/>主标注]
+        MA3[绘制POI标注<br/>编号+图标]
+        MA4[生成图例]
+    end
+
+    subgraph "输出"
+        OUT1[标注后地图<br/>PNG]
+        OUT2[图例组件]
+    end
+
+    M1 --> MA1
+    M2 --> MA2
+    M3 --> MA3
+    M4 --> MA2
+    M4 --> MA3
+
+    MA1 --> MA2 --> MA3 --> MA4
+    MA4 --> OUT1
+    MA4 --> OUT2
+        </div>
+      </div>
+
+      <h3>8.1 标注类型</h3>
+      <table>
+        <thead>
+          <tr><th>类型</th><th>图标</th><th>说明</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>property</td><td>⭐</td><td>物业位置 (主标注，突出显示)</td></tr>
+          <tr><td>transit</td><td>🚇</td><td>交通站点 (地铁、公交)</td></tr>
+          <tr><td>restaurant</td><td>🍽️</td><td>餐饮</td></tr>
+          <tr><td>shopping</td><td>🛒</td><td>购物</td></tr>
+          <tr><td>healthcare</td><td>🏥</td><td>医疗</td></tr>
+          <tr><td>education</td><td>🎓</td><td>教育</td></tr>
+          <tr><td>finance</td><td>🏦</td><td>金融</td></tr>
+          <tr><td>custom</td><td>📍</td><td>自定义</td></tr>
+        </tbody>
+      </table>
+
+      <h3>8.2 标注示例</h3>
+      <pre><code>┌─────────────────────────────────────────────────────────┐
+│                      [地图底图]                          │
+│                                                          │
+│        ③ Starbucks              ①                       │
+│                            ┌─────────┐                   │
+│           ② Subway         │ PROPERTY│    ④ Whole Foods │
+│           Station          │   ⭐    │                   │
+│                            └─────────┘                   │
+│                                 ⑤ Chase Bank             │
+├──────────────────────────────────────────────────────────┤
+│  LEGEND                                                  │
+│  ⭐ Subject Property     ④ Whole Foods (0.4 mi)        │
+│  ① Subway (0.1 mi)       ⑤ Chase Bank (0.3 mi)         │
+│  ② Metro M/R (0.2 mi)                                   │
+│  ③ Starbucks (0.2 mi)                                   │
+└──────────────────────────────────────────────────────────┘</code></pre>
+    </section>
+
+    <!-- Section 9: 表格样式系统 -->
+    <section id="table">
+      <h2>9. 表格样式系统</h2>
+
+      <h3>9.1 表格样式变体</h3>
+      <table>
+        <thead>
+          <tr><th>样式</th><th>适用场景</th><th>特点</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Financial Dark</td><td>财务摘要</td><td>深色背景，突出数据</td></tr>
+          <tr><td>Financial Light</td><td>财务详情</td><td>浅色背景，清晰易读</td></tr>
+          <tr><td>Striped</td><td>长表格</td><td>斑马纹，便于阅读</td></tr>
+          <tr><td>Card</td><td>关键指标</td><td>卡片式，突出重点</td></tr>
+        </tbody>
+      </table>
+
+      <h3>9.2 Financial Summary 示例</h3>
+      <pre><code>┌─────────────────────────────────────────────────────────┐
+│  FINANCIAL SUMMARY                        [主题色背景]   │
+├─────────────────────────────────────────────────────────┤
+│  Purchase Price    │  Cap Rate    │  NOI               │
+│  $15,900,000       │  7.5%        │  $1,192,500        │
+├─────────────────────────────────────────────────────────┤
+│  Metric            │  Year 1      │  Year 2      │ ... │
+├─────────────────────────────────────────────────────────┤
+│  Gross Revenue     │  $2.1M       │  $2.2M       │     │
+│  Operating Exp.    │  ($0.9M)     │  ($0.9M)     │     │
+│  NOI               │  $1.2M       │  $1.3M       │     │
+│  Cash Flow         │  $0.8M       │  $0.9M       │     │
+└─────────────────────────────────────────────────────────┘</code></pre>
+    </section>
+
+    <!-- Section 10: 用户交互流程 -->
+    <section id="userflow">
+      <h2>10. 用户交互流程</h2>
+
+      <div class="diagram-container">
+        <div class="diagram-title">
+          <span>完整用户流程</span>
+          <button class="fullscreen-btn" onclick="toggleFullscreen(this)">全屏</button>
+        </div>
+        <div class="mermaid">
+flowchart TB
+    subgraph "Step 1-3: 项目设置"
+        S1[创建项目<br/>物业名称/地址/类型]
+        S2[选择模板<br/>预设/上传/Atlas]
+        S3[上传文件<br/>Excel/PDF/图片]
+    end
+
+    subgraph "Step 4-5: 确认配置"
+        S4[确认解析结果<br/>👤 用户确认]
+        S5[配置选项<br/>Deep Search开关等]
+    end
+
+    subgraph "Step 6: 生成"
+        S6[生成OM<br/>按Section顺序]
+    end
+
+    subgraph "Step 7-8: 审核导出"
+        S7[审核和编辑<br/>👤 用户编辑]
+        S8[导出PDF<br/>最终输出]
+    end
+
+    S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8
+
+    style S4 fill:#fef3c7
+    style S7 fill:#fef3c7
+        </div>
+      </div>
+
+      <h3>10.1 用户干预点</h3>
+      <table>
+        <thead>
+          <tr><th>步骤</th><th>干预点</th><th>用户操作</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Step 4</td><td>解析确认</td><td>确认/修改提取的数据</td></tr>
+          <tr><td>Step 5</td><td>配置</td><td>开关功能、输入补充信息</td></tr>
+          <tr><td>Step 7</td><td>编辑</td><td>修改生成的内容、Citation</td></tr>
+          <tr><td>Step 8</td><td>确认</td><td>最终确认并导出</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer style="text-align: center; padding: 2rem; color: var(--gray-600);">
+      <p>CRE OM Generator - System Architecture Specification</p>
+      <p>Version 1.0.0 | 2026-01-13</p>
+    </footer>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'default',
+      flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' },
+      sequence: { useMaxWidth: true }
+    });
+
+    function toggleFullscreen(btn) {
+      const container = btn.closest('.diagram-container');
+      container.classList.toggle('fullscreen');
+      btn.textContent = container.classList.contains('fullscreen') ? '退出全屏' : '全屏';
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        document.querySelectorAll('.diagram-container.fullscreen').forEach(c => {
+          c.classList.remove('fullscreen');
+          c.querySelector('.fullscreen-btn').textContent = '全屏';
+        });
+      }
+    });
+  </script>
+</body>
+</html>
